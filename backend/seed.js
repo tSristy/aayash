@@ -1,6 +1,3 @@
-const fs = require('fs');
-const { DB_PATH } = require('./config');
-
 const slugify = (s) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const CATEGORIES = [
@@ -38,41 +35,60 @@ const REVIEW_TEXT = [
   'Better than what I get at the local bazaar.',
 ];
 
-function seed(db) {
-  const run = db.transaction(() => {
-    const cat = db.prepare('INSERT INTO categories (name, slug, emoji, sort_order) VALUES (?,?,?,?)');
+async function seed(pool) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
     const catId = {};
-    CATEGORIES.forEach(([name, emoji], i) => { catId[name] = cat.run(name, slugify(name), emoji, i).lastInsertRowid; });
+    for (const [i, [name, emoji]] of CATEGORIES.entries()) {
+      const [r] = await conn.query('INSERT INTO categories (name, slug, emoji, sort_order) VALUES (?,?,?,?)', [name, slugify(name), emoji, i]);
+      catId[name] = r.insertId;
+    }
 
-    const brandStmt = db.prepare('INSERT OR IGNORE INTO brands (name, slug) VALUES (?,?)');
-    const getBrand = db.prepare('SELECT id FROM brands WHERE name = ?');
-    const prod = db.prepare(`INSERT INTO products
-      (category_id, brand_id, name, slug, short_desc, description, emoji, origin, storage, shelf_life, nutrition_json, is_featured, sold_count)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-    const variant = db.prepare('INSERT INTO product_variants (product_id, sku, label, price, compare_at_price, stock, is_default) VALUES (?,?,?,?,?,?,?)');
-    const review = db.prepare('INSERT INTO reviews (product_id, author, rating, body) VALUES (?,?,?,?)');
-
-    PRODUCTS.forEach((p, i) => {
+    const brandId = {};
+    for (const [i, p] of PRODUCTS.entries()) {
       const [name, category, emoji, brand, tagline, origin, storage, shelf, n, variants, sold, featured] = p;
-      brandStmt.run(brand, slugify(brand));
+      if (!brandId[brand]) {
+        const [b] = await conn.query('INSERT INTO brands (name, slug) VALUES (?,?)', [brand, slugify(brand)]);
+        brandId[brand] = b.insertId;
+      }
       const description = `${tagline} Sourced from trusted suppliers and packed the same day you order.`;
       const nutrition = JSON.stringify({ calories: n[0], protein: n[1], carbs: n[2], fat: n[3] });
-      const id = prod.run(catId[category], getBrand.get(brand).id, name, slugify(name), tagline, description, emoji, origin, storage, shelf, nutrition, featured, sold).lastInsertRowid;
-      variants.forEach(([label, price, cmp], j) => variant.run(id, `AEM-${id}-${j + 1}`, label, price, cmp, 50 + ((i * 7 + j * 13) % 80), j === 0 ? 1 : 0));
-      for (let k = 0; k < 3; k++) review.run(id, REVIEWERS[(i + k) % REVIEWERS.length], 4 + ((i + k) % 2), REVIEW_TEXT[(i + k) % REVIEW_TEXT.length]);
-    });
+      const [pr] = await conn.query(
+        `INSERT INTO products (category_id, brand_id, name, slug, short_desc, description, emoji, origin, storage, shelf_life, nutrition, is_featured, sold_count)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [catId[category], brandId[brand], name, slugify(name), tagline, description, emoji, origin, storage, shelf, nutrition, featured, sold]);
+      const id = pr.insertId;
 
-    db.prepare("INSERT INTO coupons (code, discount_type, value, min_order) VALUES ('AAYASH10','percent',10,500)").run();
-    db.prepare("INSERT INTO coupons (code, discount_type, value, min_order) VALUES ('WELCOME50','fixed',50,400)").run();
-  });
-  run();
+      for (const [j, [label, price, cmp]] of variants.entries()) {
+        await conn.query(
+          'INSERT INTO product_variants (product_id, sku, label, price, compare_at_price, stock, is_default) VALUES (?,?,?,?,?,?,?)',
+          [id, `AEM-${id}-${j + 1}`, label, price, cmp, 50 + ((i * 7 + j * 13) % 80), j === 0 ? 1 : 0]);
+      }
+      for (let k = 0; k < 3; k++) {
+        await conn.query('INSERT INTO reviews (product_id, author, rating, body) VALUES (?,?,?,?)',
+          [id, REVIEWERS[(i + k) % REVIEWERS.length], 4 + ((i + k) % 2), REVIEW_TEXT[(i + k) % REVIEW_TEXT.length]]);
+      }
+    }
+
+    await conn.query("INSERT INTO coupons (code, discount_type, discount_value, min_order) VALUES ('AAYASH10','percent',10,500), ('WELCOME50','fixed',50,400)");
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
 
 module.exports = { seed };
 
+// `npm run seed` wipes the tables and loads fresh sample data.
 if (require.main === module) {
-  for (const ext of ['', '-wal', '-shm']) fs.rmSync(DB_PATH + ext, { force: true });
-  const db = require('./db');
-  seed(db);
-  console.log('Database seeded:', DB_PATH);
+  const { pool, init } = require('./db');
+  init({ reset: true })
+    .then(() => seed(pool))
+    .then(() => { console.log('Database reset and seeded.'); return pool.end(); })
+    .catch((e) => { console.error('Seeding failed:', e.message); process.exit(1); });
 }

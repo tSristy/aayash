@@ -1,148 +1,167 @@
--- Aayash E-Mart: food e-commerce schema (SQLite; portable to PostgreSQL/MySQL with minor type changes)
+-- Aayash E-Mart: food e-commerce schema (MySQL 8 / MariaDB 10.5+, InnoDB, utf8mb4)
 
 CREATE TABLE IF NOT EXISTS categories (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  parent_id   INTEGER REFERENCES categories(id),
-  name        TEXT NOT NULL,
-  slug        TEXT NOT NULL UNIQUE,
-  emoji       TEXT,
-  image_url   TEXT,
-  sort_order  INTEGER NOT NULL DEFAULT 0,
-  is_active   INTEGER NOT NULL DEFAULT 1
-);
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  parent_id   INT UNSIGNED NULL,
+  name        VARCHAR(120) NOT NULL,
+  slug        VARCHAR(140) NOT NULL UNIQUE,
+  emoji       VARCHAR(16) NULL,
+  image_url   VARCHAR(500) NULL,
+  sort_order  INT NOT NULL DEFAULT 0,
+  is_active   TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS brands (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE,
-  slug  TEXT NOT NULL UNIQUE
-);
+  id    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name  VARCHAR(120) NOT NULL UNIQUE,
+  slug  VARCHAR(140) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS products (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  category_id    INTEGER NOT NULL REFERENCES categories(id),
-  brand_id       INTEGER REFERENCES brands(id),
-  name           TEXT NOT NULL,
-  slug           TEXT NOT NULL UNIQUE,
-  short_desc     TEXT,
-  description    TEXT,
-  image_url      TEXT,                -- main image; falls back to emoji in the UI
-  emoji          TEXT,
-  origin         TEXT,
-  storage        TEXT,
-  shelf_life     TEXT,
-  ingredients    TEXT,
-  nutrition_json TEXT,                -- per 100 g: {"calories":..,"protein":..,"carbs":..,"fat":..}
-  is_featured    INTEGER NOT NULL DEFAULT 0,
-  is_active      INTEGER NOT NULL DEFAULT 1,
-  sold_count     INTEGER NOT NULL DEFAULT 0,
-  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  category_id  INT UNSIGNED NOT NULL,
+  brand_id     INT UNSIGNED NULL,
+  name         VARCHAR(200) NOT NULL,
+  slug         VARCHAR(220) NOT NULL UNIQUE,
+  short_desc   VARCHAR(300) NULL,
+  description  TEXT NULL,
+  image_url    VARCHAR(500) NULL,           -- main image; UI falls back to the emoji
+  emoji        VARCHAR(16) NULL,
+  origin       VARCHAR(120) NULL,
+  storage      VARCHAR(200) NULL,
+  shelf_life   VARCHAR(80) NULL,
+  ingredients  TEXT NULL,
+  nutrition    JSON NULL,                   -- per 100 g: {"calories":..,"protein":..,"carbs":..,"fat":..}
+  is_featured  TINYINT(1) NOT NULL DEFAULT 0,
+  is_active    TINYINT(1) NOT NULL DEFAULT 1,
+  sold_count   INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_products_category (category_id),
+  INDEX idx_products_sold (sold_count),
+  CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id),
+  CONSTRAINT fk_products_brand FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Pack sizes / weights (the "color variants" of grocery): 500 g, 1 kg, 12 pcs ...
 CREATE TABLE IF NOT EXISTS product_variants (
-  id               INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_id       INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  sku              TEXT NOT NULL UNIQUE,
-  label            TEXT NOT NULL,
-  price            REAL NOT NULL,
-  compare_at_price REAL,               -- set to show a discount
-  stock            INTEGER NOT NULL DEFAULT 0,
-  is_default       INTEGER NOT NULL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id        INT UNSIGNED NOT NULL,
+  sku               VARCHAR(60) NOT NULL UNIQUE,
+  label             VARCHAR(60) NOT NULL,
+  price             DECIMAL(10,2) NOT NULL,
+  compare_at_price  DECIMAL(10,2) NULL,      -- set to show a discount
+  stock             INT NOT NULL DEFAULT 0,
+  is_default        TINYINT(1) NOT NULL DEFAULT 0,
+  INDEX idx_variants_product (product_id),
+  CONSTRAINT fk_variants_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS product_images (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_id  INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  url         TEXT NOT NULL,
-  alt         TEXT,
-  sort_order  INTEGER NOT NULL DEFAULT 0
-);
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id  INT UNSIGNED NOT NULL,
+  url         VARCHAR(500) NOT NULL,
+  alt         VARCHAR(200) NULL,
+  sort_order  INT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_images_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS customers (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  name           TEXT NOT NULL,
-  phone          TEXT NOT NULL UNIQUE,
-  email          TEXT UNIQUE,
-  password_hash  TEXT,
-  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name           VARCHAR(120) NOT NULL,
+  phone          VARCHAR(30) NOT NULL UNIQUE,
+  email          VARCHAR(190) NULL UNIQUE,
+  password_hash  VARCHAR(255) NULL,
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS addresses (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  label        TEXT DEFAULT 'Home',
-  line1        TEXT NOT NULL,
-  area         TEXT,
-  city         TEXT NOT NULL DEFAULT 'Dhaka',
-  postal_code  TEXT,
-  phone        TEXT,
-  is_default   INTEGER NOT NULL DEFAULT 0
-);
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  customer_id  INT UNSIGNED NOT NULL,
+  label        VARCHAR(40) NOT NULL DEFAULT 'Home',
+  line1        VARCHAR(255) NOT NULL,
+  area         VARCHAR(120) NULL,
+  city         VARCHAR(120) NOT NULL DEFAULT 'Dhaka',
+  postal_code  VARCHAR(20) NULL,
+  phone        VARCHAR(30) NULL,
+  is_default   TINYINT(1) NOT NULL DEFAULT 0,
+  CONSTRAINT fk_addresses_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS coupons (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  code           TEXT NOT NULL UNIQUE,
-  discount_type  TEXT NOT NULL CHECK (discount_type IN ('percent','fixed')),
-  value          REAL NOT NULL,
-  min_order      REAL NOT NULL DEFAULT 0,
-  expires_at     TEXT,
-  is_active      INTEGER NOT NULL DEFAULT 1
-);
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code            VARCHAR(40) NOT NULL UNIQUE,
+  discount_type   ENUM('percent','fixed') NOT NULL,
+  discount_value  DECIMAL(10,2) NOT NULL,
+  min_order       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  expires_at      DATETIME NULL,
+  is_active       TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS orders (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_no        TEXT NOT NULL UNIQUE,
-  customer_id     INTEGER REFERENCES customers(id),
-  guest_name      TEXT NOT NULL,
-  guest_phone     TEXT NOT NULL,
-  address_line    TEXT NOT NULL,
-  area            TEXT,
-  city            TEXT NOT NULL DEFAULT 'Dhaka',
-  note            TEXT,
-  payment_method  TEXT NOT NULL DEFAULT 'cod',
-  payment_status  TEXT NOT NULL DEFAULT 'pending',
-  status          TEXT NOT NULL DEFAULT 'placed'
-                  CHECK (status IN ('placed','confirmed','packed','out_for_delivery','delivered','cancelled')),
-  subtotal        REAL NOT NULL,
-  delivery_fee    REAL NOT NULL DEFAULT 0,
-  discount        REAL NOT NULL DEFAULT 0,
-  total           REAL NOT NULL,
-  coupon_id       INTEGER REFERENCES coupons(id),
-  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_no        VARCHAR(30) NOT NULL UNIQUE,
+  customer_id     INT UNSIGNED NULL,
+  guest_name      VARCHAR(120) NOT NULL,
+  guest_phone     VARCHAR(30) NOT NULL,
+  address_line    VARCHAR(255) NOT NULL,
+  area            VARCHAR(120) NULL,
+  city            VARCHAR(120) NOT NULL DEFAULT 'Dhaka',
+  note            VARCHAR(500) NULL,
+  payment_method  VARCHAR(20) NOT NULL DEFAULT 'cod',
+  payment_status  VARCHAR(20) NOT NULL DEFAULT 'pending',
+  status          ENUM('placed','confirmed','packed','out_for_delivery','delivered','cancelled') NOT NULL DEFAULT 'placed',
+  subtotal        DECIMAL(10,2) NOT NULL,
+  delivery_fee    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  discount        DECIMAL(10,2) NOT NULL DEFAULT 0,
+  total           DECIMAL(10,2) NOT NULL,
+  coupon_id       INT UNSIGNED NULL,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_orders_phone (guest_phone),
+  INDEX idx_orders_status (status),
+  CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+  CONSTRAINT fk_orders_coupon FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS order_items (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id       INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  product_id     INTEGER NOT NULL REFERENCES products(id),
-  variant_id     INTEGER NOT NULL REFERENCES product_variants(id),
-  name           TEXT NOT NULL,       -- snapshot at purchase time
-  variant_label  TEXT NOT NULL,
-  unit_price     REAL NOT NULL,
-  qty            INTEGER NOT NULL,
-  line_total     REAL NOT NULL
-);
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id       INT UNSIGNED NOT NULL,
+  product_id     INT UNSIGNED NOT NULL,
+  variant_id     INT UNSIGNED NOT NULL,
+  name           VARCHAR(200) NOT NULL,      -- snapshot at purchase time
+  variant_label  VARCHAR(60) NOT NULL,
+  unit_price     DECIMAL(10,2) NOT NULL,
+  qty            INT UNSIGNED NOT NULL,
+  line_total     DECIMAL(10,2) NOT NULL,
+  CONSTRAINT fk_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  CONSTRAINT fk_items_product FOREIGN KEY (product_id) REFERENCES products(id),
+  CONSTRAINT fk_items_variant FOREIGN KEY (variant_id) REFERENCES product_variants(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS reviews (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_id   INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  customer_id  INTEGER REFERENCES customers(id),
-  author       TEXT NOT NULL,
-  rating       INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-  body         TEXT,
-  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id   INT UNSIGNED NOT NULL,
+  customer_id  INT UNSIGNED NULL,
+  author       VARCHAR(120) NOT NULL,
+  rating       TINYINT UNSIGNED NOT NULL,
+  body         VARCHAR(1000) NULL,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_reviews_product (product_id),
+  CONSTRAINT chk_reviews_rating CHECK (rating BETWEEN 1 AND 5),
+  CONSTRAINT fk_reviews_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  CONSTRAINT fk_reviews_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS wishlists (
-  customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  product_id   INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  PRIMARY KEY (customer_id, product_id)
-);
+  customer_id  INT UNSIGNED NOT NULL,
+  product_id   INT UNSIGNED NOT NULL,
+  PRIMARY KEY (customer_id, product_id),
+  CONSTRAINT fk_wishlists_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+  CONSTRAINT fk_wishlists_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  email       TEXT NOT NULL UNIQUE,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email       VARCHAR(190) NOT NULL UNIQUE,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

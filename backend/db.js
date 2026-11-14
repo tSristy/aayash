@@ -1,12 +1,37 @@
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
-const { DB_PATH } = require('./config');
+const mysql = require('mysql2/promise');
+const { DB } = require('./config');
 
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
+const TABLES = [
+  'wishlists', 'reviews', 'order_items', 'orders', 'coupons', 'addresses', 'customers',
+  'product_images', 'product_variants', 'products', 'brands', 'categories', 'newsletter_subscribers',
+];
 
-module.exports = db;
+const pool = mysql.createPool({
+  ...DB,
+  charset: 'utf8mb4',
+  waitForConnections: true,
+  connectionLimit: 10,
+  decimalNumbers: true, // return DECIMAL columns as numbers, not strings
+});
+
+// Creates the database and tables if they do not exist yet.
+async function init({ reset = false } = {}) {
+  const { database, ...server } = DB;
+  const boot = await mysql.createConnection({ ...server, multipleStatements: true });
+  try {
+    await boot.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await boot.query(`USE \`${database}\``);
+    if (reset) {
+      await boot.query('SET FOREIGN_KEY_CHECKS = 0');
+      for (const t of TABLES) await boot.query(`DROP TABLE IF EXISTS \`${t}\``);
+      await boot.query('SET FOREIGN_KEY_CHECKS = 1');
+    }
+    await boot.query(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
+  } finally {
+    await boot.end();
+  }
+}
+
+module.exports = { pool, init };
