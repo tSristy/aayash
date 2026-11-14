@@ -39,7 +39,8 @@ customers, addresses, coupons, orders, order_items, reviews, wishlists, newslett
 Sample coupons: AAYASH10 (10%, min 500), WELCOME50 (50 off, min 400).
 
 ## Notes
-- Theme from the logo: bag brown #5E2409, ink #3A1707, orange #F47B07 (variables at top of frontend/app/globals.css).
+- Styling is **Tailwind CSS**. The theme (colors from the logo, fonts, radii, container width) lives in `frontend/tailwind.config.js`; change it there and the whole site updates. Use theme names (`bg-primary`, `text-muted`, `bg-brown`) rather than hex values.
+- Reusable building blocks are in `frontend/components/ui/` (Button, Container, Section, Pill, Badge, Stepper, Field, ProductGrid). `globals.css` only holds the Tailwind directives and a few base rules.
 - Currency is BDT. Delivery 60, free over 1,000 (backend/config.js and frontend/lib/format.js).
 - Products have no photos yet, so tiles show emoji. Set products.image_url or add rows to product_images and photos appear automatically.
 - Footer contact details are placeholders. Cart lives in the browser; login, admin and online payment are not included yet.

@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { API } from '@/lib/api';
+import Button from './ui/Button';
+import { inputCls } from './ui/Field';
 
 export default function Newsletter() {
   const [email, setEmail] = useState('');
@@ -21,10 +23,11 @@ export default function Newsletter() {
   };
 
   return (
-    <form className="news-form" onSubmit={submit}>
-      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email address" aria-label="Email address" />
-      <button className="btn" type="submit">Subscribe</button>
-      {msg && <p className={msg.ok ? 'ok' : 'err'} role="status">{msg.text}</p>}
+    <form onSubmit={submit} className="flex flex-wrap gap-2.5">
+      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email address" aria-label="Email address"
+        className={`${inputCls} min-w-[200px] flex-1 !rounded-xl !px-3.5 !py-3`} />
+      <Button type="submit">Subscribe</Button>
+      {msg && <p role="status" className={`basis-full text-sm ${msg.ok ? 'text-success' : 'text-danger'}`}>{msg.text}</p>}
     </form>
   );
 }

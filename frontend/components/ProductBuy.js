@@ -2,7 +2,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCart } from './CartContext';
+import Button from './ui/Button';
+import Badge from './ui/Badge';
+import Stepper from './ui/Stepper';
 import { money } from '@/lib/format';
+
+const label = 'mb-2 text-sm font-bold';
 
 export default function ProductBuy({ product }) {
   const router = useRouter();
@@ -30,44 +35,43 @@ export default function ProductBuy({ product }) {
 
   return (
     <div>
-      <p className="pdp-price">
-        {money(v.price)} <small>/ {v.label}</small>
-        {v.compare_at_price && <s>{money(v.compare_at_price)}</s>}
-        {off > 0 && <span className="badge badge-inline">{off}% off</span>}
+      <p className="flex flex-wrap items-baseline gap-2 font-display text-[34px] font-extrabold">
+        {money(v.price)}
+        <small className="font-sans text-base font-medium text-muted">/ {v.label}</small>
+        {v.compare_at_price && <s className="font-sans text-lg font-normal text-muted">{money(v.compare_at_price)}</s>}
+        {off > 0 && <Badge className="font-sans">{off}% off</Badge>}
       </p>
-      <p className="pdp-note">Inclusive of VAT · Free delivery over ৳1,000</p>
+      <p className="mb-[18px] text-sm text-muted">Inclusive of VAT · Free delivery over ৳1,000</p>
+      <p className="mb-6 max-w-[56ch] text-muted">{product.description}</p>
 
-      <p className="pdp-desc">{product.description}</p>
-
-      <p className="field-label" id="pack-label">Pack size</p>
-      <div className="chips" role="radiogroup" aria-labelledby="pack-label">
+      <p className={label} id="pack-label">Pack size</p>
+      <div className="mb-[22px] flex flex-wrap gap-2.5" role="radiogroup" aria-labelledby="pack-label">
         {product.variants.map((x, k) => (
           <button key={x.id} role="radio" aria-checked={k === vi} disabled={x.stock < 1}
-            className={`chip${k === vi ? ' on' : ''}`} onClick={() => { setVi(k); setQty(1); }}>
+            onClick={() => { setVi(k); setQty(1); }}
+            className={`rounded-xl border-2 bg-white px-[18px] py-2.5 disabled:cursor-not-allowed disabled:opacity-40 ${k === vi ? 'border-primary font-bold' : 'border-line font-medium'}`}>
             {x.label}
           </button>
         ))}
       </div>
 
-      <p className="field-label">Quantity</p>
-      <div className="qty-row">
-        <div className="stepper">
-          <button onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Decrease quantity">−</button>
-          <span aria-live="polite">{qty}</span>
-          <button onClick={() => setQty(Math.min(v.stock || 1, qty + 1))} aria-label="Increase quantity">+</button>
-        </div>
-        <p className="est">Total: <strong>{money(v.price * qty)}</strong></p>
-        <p className={`stock${inStock ? '' : ' out'}`}>{inStock ? (v.stock < 10 ? `Only ${v.stock} left` : 'In stock') : 'Out of stock'}</p>
+      <p className={label}>Quantity</p>
+      <div className="mb-6 flex flex-wrap items-center gap-5">
+        <Stepper value={qty} onChange={setQty} max={v.stock || 1} />
+        <p className="text-muted">Total: <strong className="text-ink">{money(v.price * qty)}</strong></p>
+        <p className={`text-sm font-medium ${inStock ? 'text-success' : 'text-danger'}`}>
+          {inStock ? (v.stock < 10 ? `Only ${v.stock} left` : 'In stock') : 'Out of stock'}
+        </p>
       </div>
 
-      <div className="buy-row">
-        <button className={`btn btn-lg${added ? ' btn-done' : ''}`} onClick={onAdd} disabled={!inStock}>{added ? 'Added to cart' : 'Add to cart'}</button>
-        <button className="btn btn-lg btn-outline" onClick={onBuy} disabled={!inStock}>Buy now</button>
+      <div className="mb-[18px] grid max-w-[480px] grid-cols-[1.4fr_1fr] gap-3">
+        <Button size="lg" variant={added ? 'dark' : 'primary'} onClick={onAdd} disabled={!inStock}>{added ? 'Added to cart' : 'Add to cart'}</Button>
+        <Button size="lg" variant="outline" onClick={onBuy} disabled={!inStock}>Buy now</Button>
       </div>
 
-      <div className="pdp-links">
-        <button onClick={() => setLiked(!liked)} aria-pressed={liked}>{liked ? '♥ Saved' : '♡ Save for later'}</button>
-        <button onClick={onShare}>{shared ? 'Link copied' : 'Share'}</button>
+      <div className="flex max-w-[480px] gap-5 border-t border-line pt-4 text-muted">
+        <button onClick={() => setLiked(!liked)} aria-pressed={liked} className="hover:text-ink">{liked ? '♥ Saved' : '♡ Save for later'}</button>
+        <button onClick={onShare} className="hover:text-ink">{shared ? 'Link copied' : 'Share'}</button>
       </div>
     </div>
   );

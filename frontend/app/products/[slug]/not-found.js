@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { Section, PageTitle } from '@/components/ui/Section';
+
 export default function NotFound() {
   return (
-    <div className="wrap section">
-      <h1 className="page-title">We couldn’t find that product</h1>
-      <p className="empty">It may have been removed. <Link href="/products" className="link">Browse all products</Link></p>
-    </div>
+    <Section>
+      <PageTitle>We couldn’t find that product</PageTitle>
+      <p className="text-muted">It may have been removed. <Link href="/products" className="font-bold text-primary-deep">Browse all products</Link></p>
+    </Section>
   );
 }

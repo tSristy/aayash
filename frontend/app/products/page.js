@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
+import Pill from '@/components/ui/Pill';
+import ProductGrid from '@/components/ui/ProductGrid';
+import { Section, PageTitle } from '@/components/ui/Section';
 import { safe } from '@/lib/api';
 
 const SORTS = [['popular', 'Popular'], ['price_asc', 'Price: low to high'], ['price_desc', 'Price: high to low'], ['newest', 'Newest']];
@@ -20,25 +23,23 @@ export default async function Products({ searchParams }) {
   const title = q ? `Results for “${q}”` : deal ? 'Deals' : active ? active.name : 'All products';
 
   return (
-    <div className="wrap section">
-      <nav className="crumbs" aria-label="Breadcrumb"><Link href="/">Home</Link> / <span>Products</span></nav>
-      <h1 className="page-title">{title}</h1>
+    <Section className="pt-5">
+      <nav className="text-sm text-muted" aria-label="Breadcrumb"><Link href="/" className="hover:text-primary-deep">Home</Link> / <span>Products</span></nav>
+      <PageTitle>{title}</PageTitle>
 
-      <div className="filters">
-        <div className="pills">
-          <Link href={qs({ category: '' })} className={`pill${!category ? ' on' : ''}`}>All</Link>
-          {categories.map((c) => (
-            <Link key={c.id} href={qs({ category: c.slug })} className={`pill${category === c.slug ? ' on' : ''}`}>{c.emoji} {c.name}</Link>
-          ))}
+      <div className="mb-7 grid gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Pill href={qs({ category: '' })} active={!category}>All</Pill>
+          {categories.map((c) => <Pill key={c.id} href={qs({ category: c.slug })} active={category === c.slug}>{c.emoji} {c.name}</Pill>)}
         </div>
-        <div className="pills sorts">
-          {SORTS.map(([k, label]) => <Link key={k} href={qs({ sort: k })} className={`pill pill-quiet${sort === k ? ' on' : ''}`}>{label}</Link>)}
+        <div className="flex flex-wrap gap-2">
+          {SORTS.map(([k, label]) => <Pill key={k} href={qs({ sort: k })} active={sort === k} quiet>{label}</Pill>)}
         </div>
       </div>
 
       {products.length === 0
-        ? <p className="empty">No products found. Try another category or search term.</p>
-        : <div className="grid">{products.map((p) => <ProductCard key={p.id} p={p} />)}</div>}
-    </div>
+        ? <p className="text-muted">No products found. Try another category or search term.</p>
+        : <ProductGrid>{products.map((p) => <ProductCard key={p.id} p={p} />)}</ProductGrid>}
+    </Section>
   );
 }

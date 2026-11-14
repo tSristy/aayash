@@ -10,10 +10,11 @@ export default function Gallery({ product }) {
     <div>
       <ProductVisual product={current} large />
       {imgs.length > 1 && (
-        <div className="thumbs">
+        <div className="mt-3 flex gap-2.5">
           {imgs.map((im, k) => (
-            <button key={im.url} className={k === i ? 'on' : ''} onClick={() => setI(k)} aria-label={`Show image ${k + 1}`}>
-              <img src={im.url} alt={im.alt || product.name} />
+            <button key={im.url} onClick={() => setI(k)} aria-label={`Show image ${k + 1}`}
+              className={`h-[76px] w-[76px] overflow-hidden rounded-xl border-2 p-0 ${k === i ? 'border-primary' : 'border-transparent'}`}>
+              <img src={im.url} alt={im.alt || product.name} className="h-full w-full object-cover" />
             </button>
           ))}
         </div>

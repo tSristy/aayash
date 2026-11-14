@@ -1,13 +1,12 @@
-const TINTS = ['#FFF1E0', '#FDE9D6', '#F8EBDD', '#FFF5E3', '#FBE5D0'];
+const TINTS = ['bg-tint', 'bg-tint-2', 'bg-tint-3', 'bg-tint-4', 'bg-tint-5'];
 
 // Shows the product photo when image_url exists, otherwise a tinted tile with the product emoji.
 export default function ProductVisual({ product, large = false }) {
-  const tint = TINTS[product.id % TINTS.length];
   return (
-    <div className={`visual${large ? ' visual-lg' : ''}`} style={{ background: tint }}>
+    <div className={`grid aspect-square place-items-center overflow-hidden ${large ? 'rounded-3xl bg-white' : `rounded-[14px] ${TINTS[product.id % TINTS.length]}`}`}>
       {product.image_url
-        ? <img src={product.image_url} alt={product.name} />
-        : <span role="img" aria-label={product.name}>{product.emoji}</span>}
+        ? <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+        : <span role="img" aria-label={product.name} className={`leading-none ${large ? 'text-[180px]' : 'text-7xl'}`}>{product.emoji}</span>}
     </div>
   );
 }
