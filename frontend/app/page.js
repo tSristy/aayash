@@ -16,6 +16,8 @@ const WHY = [
   ['Easy refunds', 'Not happy with an item? Tell us within 24 hours.'],
 ];
 
+const primaryBtn = '!rounded-none !border-0 !bg-[#A65A3E] !px-8 !py-3.5 !text-xs !font-semibold !uppercase !tracking-widest !text-white hover:!bg-[#8F4B32]';
+
 export default async function Home() {
   const [categories, best] = await Promise.all([
     safe('/api/categories', []),
@@ -24,46 +26,68 @@ export default async function Home() {
   const picks = best.slice(0, 3);
 
   return (
-    <>
-      <Container className="grid items-center gap-12 pt-12 lg:grid-cols-[1.15fr_.85fr]">
-        <div>
-          <h1 className="mb-[18px] max-w-[14ch] text-[clamp(38px,5vw,60px)] leading-[1.05] text-brown">Fresh groceries, at your door by evening.</h1>
-          <p className="max-w-[46ch] text-lg text-muted">Vegetables, fish, meat, dairy and pantry staples from trusted suppliers. Order before 4 pm for same-day delivery in Dhaka.</p>
-          <div className="my-7 flex flex-wrap gap-3">
-            <Button href="/products" size="lg">Shop groceries</Button>
-            <Button href="/products?deal=1" size="lg" variant="outline">See today’s deals</Button>
-          </div>
-          <ul className="flex flex-wrap gap-5 text-sm font-medium">
-            {['Free delivery over ৳1,000', 'Not fresh? Full refund', 'Pay on delivery'].map((t) => (
-              <li key={t}><span className="font-bold text-primary-deep">✓ </span>{t}</li>
-            ))}
-          </ul>
-        </div>
+    <main className="overflow-hidden bg-canvas">
+      
+      <Container className="mt-8">
+        <div className="relative grid items-center gap-12 overflow-hidden bg-[#3D342B] px-7 py-12 text-white sm:px-12 sm:py-16 lg:grid-cols-[1.15fr_.85fr]">
+          <img
+            src="https://static.vecteezy.com/system/resources/thumbnails/073/307/092/small_2x/stacked-wooden-boxes-with-shopping-cart-icons-are-placed-on-a-rustic-wooden-table-with-a-blurred-laptop-screen-displaying-an-online-shopping-interface-in-the-background-photo.jpeg"
+            alt=""
+            referrerPolicy="no-referrer"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/80 via-white/10 to-black/25" aria-hidden />
 
-        <div className="relative grid gap-3.5 overflow-hidden rounded-panel bg-brown p-7">
-          <div className="absolute -right-[60px] -top-[60px] h-[180px] w-[180px] rounded-full bg-primary" aria-hidden />
-          <p className="relative z-10 font-display text-[22px] font-extrabold text-white">Picked for you today</p>
-          {picks.length === 0 && <p className="relative z-10 text-peach">Start the backend (port 4000) to see products here.</p>}
-          {picks.map((p, i) => (
-            <Link key={p.id} href={`/products/${p.slug}`}
-              className={`relative z-10 flex items-center gap-3.5 rounded-2xl bg-white px-4 py-3.5 transition-transform hover:translate-x-1 ${i === 1 ? 'ml-7' : ''}`}>
-              <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-tint text-[34px]">{p.emoji}</span>
-              <span className="flex-1 font-bold">{p.name}<small className="block font-normal text-muted">{p.variant_label}</small></span>
-              <span className="font-bold">{money(p.price)}</span>
-            </Link>
-          ))}
+          <div className="relative z-10">
+            <h1 className="mb-5 max-w-[14ch] font-serif text-[clamp(38px,5vw,50px)] font-normal leading-[1.15] text-white">
+              <span className="bg-[#A65A3E] px-2.5 py-0.5 box-decoration-clone">Fresh groceries, at</span> your door by evening.
+            </h1>
+            <p className="max-w-[46ch] text-base leading-relaxed text-stone-200 sm:text-lg">
+              Vegetables, fish, meat, dairy and pantry staples from trusted suppliers. Order before 4 pm for same-day delivery in Dhaka.
+            </p>
+
+            <div className="my-8 flex flex-wrap gap-3.5">
+              <Button href="/products" size="lg" className={primaryBtn}>Shop groceries</Button>
+              <Button href="/products?deal=1" size="lg" variant="outline"
+                className="!rounded-none !border-white/40 !bg-transparent !px-7 !py-3.5 !text-xs !font-semibold !uppercase !tracking-widest !text-white hover:!border-white hover:!bg-white/10">
+                See today’s deals
+              </Button>
+            </div>
+
+            <ul className="flex flex-wrap gap-5 text-xs font-medium text-stone-200">
+              {['Free delivery over ৳1,000', 'Not fresh? Full refund', 'Pay on delivery'].map((t) => (
+                <li key={t}><span className="text-[#E09F87]">✓ </span>{t}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="relative z-10 grid gap-3.5 border border-white/15 bg-[#2E261F]/75 p-6 backdrop-blur-sm">
+            <p className="text-xs font-medium uppercase tracking-widest text-stone-300">Picked for you today</p>
+            {picks.length === 0 && <p className="text-sm text-stone-300">Start the backend (port 4000) to see products here.</p>}
+            {picks.map((p, i) => (
+              <Link key={p.id} href={`/products/${p.slug}`}
+                className={`flex items-center gap-3.5 border border-white/15 bg-[#F5F1EB] px-4 py-3.5 text-[#2E261F] transition-transform hover:translate-x-1 ${i === 1 ? 'sm:ml-6' : ''}`}>
+                <span className="grid h-14 w-14 shrink-0 place-items-center bg-[#E8E0D5] text-[34px]">{p.emoji}</span>
+                <span className="flex-1 font-serif text-base font-medium">
+                  {p.name}
+                  <small className="block font-sans text-xs font-normal text-stone-500">{p.variant_label}</small>
+                </span>
+                <span className="text-sm font-semibold text-[#A65A3E]">{money(p.price)}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </Container>
 
       <Section>
         <SectionHead title="Shop by category" href="/products" />
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4">
           {categories.map((c) => (
             <Link key={c.id} href={`/products?category=${c.slug}`}
-              className="grid justify-items-center gap-1 rounded-card border border-line bg-white px-3.5 py-[18px] text-center transition-colors hover:border-primary">
-              <span className="mb-1.5 grid h-[68px] w-[68px] place-items-center rounded-full bg-tint text-[38px]">{c.emoji}</span>
-              <strong>{c.name}</strong>
-              <small className="text-muted">{c.product_count} items</small>
+              className="group grid justify-items-center gap-1.5 border border-[#E2D9CE] bg-[#F5F1EB] px-4 py-6 text-center transition-colors hover:border-[#A65A3E] hover:bg-white">
+              <span className="mb-2 grid h-16 w-16 place-items-center bg-[#E8E0D5] text-[36px] transition-transform group-hover:scale-105">{c.emoji}</span>
+              <strong className="font-serif text-base font-medium text-[#2E261F]">{c.name}</strong>
+              <small className="text-[11px] uppercase tracking-wider text-stone-500">{c.product_count} items</small>
             </Link>
           ))}
         </div>
@@ -75,30 +99,39 @@ export default async function Home() {
       </Section>
 
       <Section>
-        <div className="flex flex-wrap items-center justify-between gap-7 rounded-3xl bg-brown p-6 text-white sm:px-9 sm:py-8">
+        <div className="flex flex-wrap items-center justify-between gap-7 border border-[#2E261F]/15 bg-[#5D3D29] px-7 py-9 text-white sm:px-12">
           <div>
-            <h2 className="mb-1.5 text-[30px]">Today’s deals end at midnight</h2>
-            <p className="text-peach">Lower prices on fruit, fish, dairy and pantry items, until tonight.</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-widest text-[#E09F87]">Limited Time • Ends Tonight</p>
+            <h2 className="mb-1.5 font-serif text-[28px] font-normal sm:text-[34px]">Today’s deals end at midnight</h2>
+            <p className="text-sm text-stone-300">Lower prices on fruit, fish, dairy and pantry items, until tonight.</p>
           </div>
           <Countdown />
-          <Button href="/products?deal=1" size="lg">Shop the deals</Button>
+          <Button href="/products?deal=1" size="lg" className={primaryBtn}>Shop the deals</Button>
         </div>
       </Section>
 
       <Section id="delivery">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {WHY.map(([title, text]) => (
-            <div key={title}><h3 className="mb-1.5 text-lg">{title}</h3><p className="text-[15px] text-muted">{text}</p></div>
+        <div className="grid gap-6 border-y border-[#E2D9CE] py-10 sm:grid-cols-2 lg:grid-cols-4">
+          {WHY.map(([title, text], i) => (
+            <div key={title} className="border-l-2 border-[#A65A3E] pl-4">
+              <span className="mb-1 block text-xs font-semibold tracking-widest text-[#A65A3E]">0{i + 1}</span>
+              <h3 className="mb-1.5 font-serif text-xl font-normal text-[#2E261F]">{title}</h3>
+              <p className="text-sm text-stone-600">{text}</p>
+            </div>
           ))}
         </div>
       </Section>
 
       <Section>
-        <div className="grid items-center gap-7 rounded-3xl bg-tint p-9 md:grid-cols-2">
-          <div><h2 className="mb-1.5 text-[28px]">Get offers in your inbox</h2><p className="text-muted">One email a week with the best prices. Unsubscribe any time.</p></div>
+        <div className="grid items-center gap-8 border border-[#E2D9CE] bg-[#F5F1EB] p-8 sm:p-12 md:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-widest text-[#A65A3E]">Weekly Harvest List</p>
+            <h2 className="mb-2 font-serif text-[28px] font-normal text-[#2E261F] sm:text-[32px]">Get offers in your inbox</h2>
+            <p className="text-sm text-stone-600">One email a week with the best prices. Unsubscribe any time.</p>
+          </div>
           <Newsletter />
         </div>
       </Section>
-    </>
+    </main>
   );
 }
