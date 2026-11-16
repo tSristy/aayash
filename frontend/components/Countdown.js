@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-// Counts down to midnight tonight, so the "today only" offer never goes stale.
 function left() {
   const now = new Date();
   const end = new Date(now);
@@ -21,9 +20,9 @@ export default function Countdown() {
   return (
     <div className="flex gap-2.5" aria-label="Time left today">
       {[['Hours', t?.h], ['Mins', t?.m], ['Secs', t?.s]].map(([label, v]) => (
-        <div key={label} className="min-w-[72px] rounded-xl bg-white/10 px-3.5 py-2.5 text-center">
-          <strong className="block text-[26px] tabular-nums">{pad(v)}</strong>
-          <span className="text-xs text-peach">{label}</span>
+        <div key={label} className="min-w-[74px] border border-white/15 bg-white/10 px-3.5 py-2.5 text-center">
+          <strong className="block font-serif text-[26px] font-normal tabular-nums text-white">{pad(v)}</strong>
+          <span className="text-[11px] uppercase tracking-widest text-[#E09F87]">{label}</span>
         </div>
       ))}
     </div>

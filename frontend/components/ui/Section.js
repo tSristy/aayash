@@ -7,11 +7,13 @@ export function Section({ className = '', children, ...props }) {
 
 export function SectionHead({ title, href, linkText = 'View all' }) {
   return (
-    <div className="mb-5 flex items-baseline justify-between">
-      <h2 className="text-[28px]">{title}</h2>
-      {href && <Link href={href} className="font-bold text-primary-deep">{linkText}</Link>}
+    <div className="mb-6 flex items-baseline justify-between border-b border-[#E2D9CE] pb-3">
+      <h2 className="font-serif text-[28px] font-normal text-[#2E261F] sm:text-[32px]">{title}</h2>
+      {href && <Link href={href} className="text-xs font-semibold uppercase tracking-widest text-[#A65A3E] hover:text-[#2E261F]">{linkText}</Link>}
     </div>
   );
 }
 
-export const PageTitle = ({ children }) => <h1 className="mb-6 mt-2 text-4xl">{children}</h1>;
+export const PageTitle = ({ className = '', children }) => (
+  <h1 className={`mb-6 mt-2 font-serif text-4xl font-normal text-[#2E261F] ${className}`}>{children}</h1>
+);

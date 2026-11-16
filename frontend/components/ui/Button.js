@@ -1,12 +1,12 @@
 import Link from 'next/link';
 
-const base = 'inline-flex items-center justify-center rounded-xl border-2 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+const base = 'inline-flex items-center justify-center rounded-none border text-xs font-semibold uppercase tracking-widest transition-colors disabled:cursor-not-allowed disabled:opacity-50';
 const variants = {
-  primary: 'border-primary bg-primary text-ink hover:border-primary-hover hover:bg-primary-hover',
-  outline: 'border-ink bg-transparent text-ink hover:bg-tint',
-  dark: 'border-ink bg-ink text-white',
+  primary: 'border-[#A65A3E] bg-[#A65A3E] text-white hover:border-[#8F4B32] hover:bg-[#8F4B32]',
+  outline: 'border-[#2E261F] bg-transparent text-[#2E261F] hover:bg-[#F5F1EB]',
+  dark: 'border-[#2E261F] bg-[#2E261F] text-white hover:bg-[#3D342B]',
 };
-const sizes = { sm: 'px-3 py-[7px] text-sm', md: 'px-[18px] py-2.5', lg: 'px-6 py-3.5 text-base' };
+const sizes = { sm: 'px-3.5 py-2', md: 'px-5 py-3', lg: 'px-8 py-3.5' };
 
 export default function Button({ href, variant = 'primary', size = 'md', block = false, className = '', ...props }) {
   const cls = `${base} ${variants[variant]} ${sizes[size]} ${block ? 'w-full' : ''} ${className}`;

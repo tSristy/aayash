@@ -25,9 +25,9 @@ export default function Newsletter() {
   return (
     <form onSubmit={submit} className="flex flex-wrap gap-2.5">
       <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email address" aria-label="Email address"
-        className={`${inputCls} min-w-[200px] flex-1 !rounded-xl !px-3.5 !py-3`} />
+        className={`${inputCls} min-w-[200px] flex-1 !rounded-none !border-[#E2D9CE] !bg-white !px-3.5 !py-3 text-sm text-[#2E261F] placeholder:text-stone-400 focus:!border-[#A65A3E]`} />
       <Button type="submit">Subscribe</Button>
-      {msg && <p role="status" className={`basis-full text-sm ${msg.ok ? 'text-success' : 'text-danger'}`}>{msg.text}</p>}
+      {msg && <p role="status" className={`basis-full text-sm ${msg.ok ? 'text-emerald-700' : 'text-[#A65A3E]'}`}>{msg.text}</p>}
     </form>
   );
 }
