@@ -21,7 +21,7 @@ function CategoryRow({ section, index }) {
 
   return (
     <div>
-      {/* Category Header (No Tabs) */}
+     
       <div className="mb-4 flex items-center justify-between gap-4 border-b border-[#E2D9CE] pb-3">
         <h2 className="font-serif text-2xl font-bold text-[#2E261F]">
           {section.cat.name}
@@ -35,7 +35,6 @@ function CategoryRow({ section, index }) {
         </Link>
       </div>
 
-      {/* Top horizontal progress bar line */}
       <div className="mb-5 h-[4px] w-full overflow-hidden bg-[#E2D9CE]">
         <div
           className="h-full bg-[#A65A3E] transition-all duration-300"
@@ -44,7 +43,7 @@ function CategoryRow({ section, index }) {
       </div>
 
       <div className="group relative">
-        {/* Custom Left Arrow */}
+       
         <button
           type="button"
           aria-label="Previous slide"
@@ -55,7 +54,7 @@ function CategoryRow({ section, index }) {
           </svg>
         </button>
 
-        {/* Custom Right Arrow */}
+       
         <button
           type="button"
           aria-label="Next slide"
