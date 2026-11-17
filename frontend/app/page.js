@@ -8,6 +8,7 @@ import ProductGrid from '@/components/ui/ProductGrid';
 import { Section, SectionHead } from '@/components/ui/Section';
 import { safe } from '@/lib/api';
 import { money } from '@/lib/format';
+import Carousel from '@/components/Carousel';
 
 const WHY = [
   ['Picked fresh daily', 'Produce arrives each morning and is packed to order.'],
@@ -23,11 +24,31 @@ export default async function Home() {
     safe('/api/categories', []),
     safe('/api/products?sort=popular&limit=8', []),
   ]);
+
+  const wanted = ['meat', 'vegetable', 'dairy'];
+  const pickedCats = [];
+  for (const key of wanted) {
+    const match = categories.find(
+      (c) => !pickedCats.some((p) => p.id === c.id) && `${c.slug} ${c.name}`.toLowerCase().includes(key)
+    );
+    if (match) pickedCats.push(match);
+  }
+  for (const c of categories) {
+    if (pickedCats.length >= 3) break;
+    if (!pickedCats.some((p) => p.id === c.id)) pickedCats.push(c);
+  }
+  const carouselCats = pickedCats;
+
+  const catSections = await Promise.all(
+    carouselCats.map(async (cat) => ({
+      cat,
+      items: await safe(`/api/products?category=${cat.slug}&limit=10`, []),
+    }))
+  );
   const picks = best.slice(0, 3);
 
   return (
     <main className="overflow-hidden bg-canvas">
-      
       <Container className="mt-8">
         <div className="relative grid items-center gap-12 overflow-hidden bg-[#3D342B] px-7 py-12 text-white sm:px-12 sm:py-16 lg:grid-cols-[1.15fr_.85fr]">
           <img
@@ -109,6 +130,14 @@ export default async function Home() {
           <Button href="/products?deal=1" size="lg" className={primaryBtn}>Shop the deals</Button>
         </div>
       </Section>
+
+
+
+      {catSections.length > 0 && (
+        <Section>
+          <Carousel sections={catSections} />
+        </Section>
+      )}
 
       <Section id="delivery">
         <div className="grid gap-6 border-y border-[#E2D9CE] py-10 sm:grid-cols-2 lg:grid-cols-4">
