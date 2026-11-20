@@ -14,7 +14,7 @@ export default function Dashboard() {
           <DeliveryProgress />
         </div>
       </div>
-      <p className="text-xs text-muted">Figures shown are sample data until the admin API is connected.</p>
+      <p className="text-xs text-taupe-600">Figures shown are sample data until the admin API is connected.</p>
     </div>
   );
 }

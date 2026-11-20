@@ -3,10 +3,10 @@ import { CATEGORY_SALES } from './data';
 export default function SalesDonut() {
   let offset = 0;
   return (
-    <section className="rounded-card border border-line bg-white p-5">
+    <section className="rounded-card border border-taupe-200 bg-white p-5">
       <h2 className="mb-4 text-lg">Sales by category</h2>
       <svg viewBox="0 0 42 42" className="mx-auto h-44 w-44 -rotate-90" role="img" aria-label="Sales by category">
-        <circle cx="21" cy="21" r="15.9155" fill="none" strokeWidth="5" className="stroke-tint-2" />
+        <circle cx="21" cy="21" r="15.9155" fill="none" strokeWidth="5" className="stroke-taupe-100" />
         {CATEGORY_SALES.map((c) => {
           const el = (
             <circle key={c.name} cx="21" cy="21" r="15.9155" fill="none" strokeWidth="5" className={c.stroke}

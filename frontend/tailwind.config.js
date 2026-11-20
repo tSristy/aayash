@@ -11,9 +11,21 @@ module.exports = {
         ink: '#3A1707',                 // body text, dark surfaces (logo wordmark brown)
         brown: '#5E2409',               // logo bag brown: hero panel, offer band, headings
         primary: {
-          DEFAULT: '#F47B07',           // logo orange: buttons, accents
-          hover: '#FF8E26',
-          deep: '#B84D00',              // orange for text on light backgrounds (readable)
+          DEFAULT: '#FF9933',           // brand orange: buttons, active states, accents
+          hover: '#FFA64D',
+          deep: '#A85500',              // darker orange for TEXT on light backgrounds (FF9933 is too light to read)
+          soft: '#FFC78A',              // light orange for charts
+        },
+        taupe: {                        // brand neutral (8C857A) and its tints/shades: admin surfaces, text, borders
+          DEFAULT: '#8C857A',
+          50: '#F7F5F2',
+          100: '#EEEBE6',
+          200: '#DDD9D2',
+          300: '#C4BFB6',
+          600: '#6B655B',
+          700: '#57524A',
+          800: '#3F3B35',
+          900: '#2B2823',
         },
         canvas: '#FFFCF8',              // page background
         tint: {                         // soft cream/peach surfaces (also used for product tiles)
@@ -27,9 +39,7 @@ module.exports = {
         muted: '#7B6A5B',               // secondary text
         peach: '#F3D9C2',               // light text on brown
         sand: '#E9D2BE',                // light text on ink (footer)
-        wash: '#FAF5EE',                // admin page background
-        gold: '#E8A33D',                // chart / status accent
-        clay: '#C98B5E',                // chart accent
+        wash: '#F6F4F0',                // admin page background
         success: '#1F7A3E',
         danger: '#B42318',
       },
