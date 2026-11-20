@@ -6,7 +6,7 @@
 @layer base {
   html { scroll-behavior: smooth; overflow-y: scroll; }
   body { @apply bg-canvas font-sans text-ink antialiased; }
-  h1, h2, h3, h4 { @apply font-display font-extrabold leading-tight tracking-tight; }
+  h1, h2, h3, h4 { @apply font-display font-bold leading-tight tracking-tight; }
   :focus-visible { @apply outline outline-[3px] outline-offset-2 outline-primary; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 }

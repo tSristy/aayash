@@ -44,8 +44,10 @@ module.exports = {
         danger: '#B42318',
       },
       fontFamily: {
-        display: ['"Bricolage Grotesque"', 'DM Sans', 'system-ui', 'sans-serif'],
-        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        // Roboto everywhere. Roboto ships 400/500/700 here, so headings use font-bold (no 800).
+        display: ['Roboto', 'system-ui', 'sans-serif'],
+        sans: ['Roboto', 'system-ui', 'sans-serif'],
+        serif: ['Roboto', 'system-ui', 'sans-serif'], // storefront headings use font-serif; remove this line to get a real serif back
       },
       maxWidth: { container: '1200px' },
       borderRadius: { card: '18px', panel: '28px' },

@@ -35,7 +35,7 @@ export default function Topbar({ session, onMenu, onSignOut }) {
         <div className="relative" ref={ref}>
           <button onClick={() => setMenu(!menu)} aria-expanded={menu} aria-haspopup="menu"
             className="flex items-center gap-2.5 rounded-xl p-1.5 pr-2 hover:bg-taupe-50">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary font-display font-extrabold text-taupe-900">{session.name[0]}</span>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary font-display font-bold text-taupe-900">{session.name[0]}</span>
             <span className="hidden text-left leading-tight sm:block">
               <span className="block text-sm font-bold">{session.name}</span>
               <span className="block text-xs text-taupe-600">Administrator</span>
