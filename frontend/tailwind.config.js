@@ -27,6 +27,9 @@ module.exports = {
         muted: '#7B6A5B',               // secondary text
         peach: '#F3D9C2',               // light text on brown
         sand: '#E9D2BE',                // light text on ink (footer)
+        wash: '#FAF5EE',                // admin page background
+        gold: '#E8A33D',                // chart / status accent
+        clay: '#C98B5E',                // chart accent
         success: '#1F7A3E',
         danger: '#B42318',
       },

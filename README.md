@@ -44,3 +44,10 @@ Sample coupons: AAYASH10 (10%, min 500), WELCOME50 (50 off, min 400).
 - Currency is BDT. Delivery 60, free over 1,000 (backend/config.js and frontend/lib/format.js).
 - Products have no photos yet, so tiles show emoji. Set products.image_url or add rows to product_images and photos appear automatically.
 - Footer contact details are placeholders. Cart lives in the browser; login, admin and online payment are not included yet.
+
+## Admin panel (frontend only)
+- `/login` is a minimal username + password page. `/admin` is the admin layout (sidebar, top bar, dashboard).
+- The login is **static and runs entirely in the browser** (`frontend/lib/auth.js`); the backend is not involved. Default credentials: `admin` / `aayash123`. Override them with `NEXT_PUBLIC_ADMIN_USERNAME` and `NEXT_PUBLIC_ADMIN_PASSWORD` in `frontend/.env.local`.
+- Because the credentials are part of the JavaScript bundle, this only hides the admin screens from casual visitors. It does not protect data. Replace it with real authentication before the backend exposes admin endpoints.
+- Dashboard numbers are sample data in `frontend/components/admin/data.js`. Sidebar sections without a page yet (Orders, Products, Reports, Messages, Customers) show a placeholder at `/admin/<section>`.
+- Storefront pages now live in the `app/(shop)` route group so login and admin do not get the storefront header and footer.
