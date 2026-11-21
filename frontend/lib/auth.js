@@ -1,30 +1,33 @@
-// STATIC, FRONTEND-ONLY LOGIN (placeholder until real authentication exists).
-// The credentials ship inside the JavaScript bundle, so this only hides the admin UI from casual visitors.
-// It does NOT protect data. Never rely on it once the backend has admin endpoints.
-const KEY = 'aem-admin-session';
-const SESSION_MS = 12 * 60 * 60 * 1000;
+// Auth is verified by the backend. No public credentials or localStorage sessions.
+const PREFIX = '/api/admin/auth';
 
-const CREDENTIALS = {
-  username: process.env.NEXT_PUBLIC_ADMIN_USERNAME || 'admin',
-  password: process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'aayash123',
-};
-
-export function login(username, password) {
-  if (username.trim() !== CREDENTIALS.username || password !== CREDENTIALS.password) return false;
+export async function login(username, password) {
+  let res;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ username: CREDENTIALS.username, name: 'Admin', at: Date.now() }));
-  } catch { return false; }
-  return true;
+    res = await fetch(`${PREFIX}/login`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      cache: 'no-store',
+    });
+  } catch { throw new Error('Cannot connect to the backend. Please try again.'); }
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('Too many attempts. Try again later.');
+    throw new Error('Incorrect username or password.');
+  }
+  const data = await res.json();
+  return data.user;
 }
 
-export function getSession() {
+export async function getSession() {
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (!s || Date.now() - s.at > SESSION_MS) { localStorage.removeItem(KEY); return null; }
-    return s;
+    const res = await fetch(`${PREFIX}/me`, { credentials: 'same-origin', cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()).user;
   } catch { return null; }
 }
 
-export function logout() {
-  try { localStorage.removeItem(KEY); } catch {}
+export async function logout() {
+  await fetch(`${PREFIX}/logout`, { method: 'POST', credentials: 'same-origin', cache: 'no-store' });
 }

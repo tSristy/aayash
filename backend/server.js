@@ -1,12 +1,25 @@
 const express = require('express');
 const cors = require('cors');
-const { pool, init } = require('./db');
-const { seed } = require('./seed');
+const { pool } = require('./db');
 const { PORT, CORS_ORIGIN, FREE_DELIVERY_OVER, DELIVERY_FEE } = require('./config');
+const { sequelize } = require('./src/db/sequelize');
+const { runMigrations, shouldMigrateOnStart } = require('./src/db/migration-runner');
+const adminAuthRouter = require('./src/routes/admin-auth');
+const adminCatalogRouter = require('./src/routes/admin-catalog');
+const { bootstrapOnDevelopmentStart } = require('./src/bootstrap/admin');
+const { registerLocalImageServing } = require('./src/media/image-storage');
 
 const app = express();
-app.use(cors({ origin: CORS_ORIGIN.split(',') }));
-app.use(express.json());
+app.use(cors({ origin: CORS_ORIGIN.split(',').map((s) => s.trim()) }));
+// Image requests are larger than ordinary catalog JSON requests (5 MB file + Base64).
+app.use('/api/admin/catalog/media', express.json({ limit: '8mb' }));
+
+// Allow complex variant payloads on admin catalog only; keep public JSON limit unchanged.
+app.use('/api/admin/catalog', express.json({limit:'256kb'}));
+app.use(express.json({ limit: '32kb' }));
+app.use('/api/admin/auth', adminAuthRouter);
+app.use('/api/admin/catalog', adminCatalogRouter);
+registerLocalImageServing(app);
 
 const query = async (sql, params) => (await pool.query(sql, params))[0];
 const one = async (sql, params) => (await query(sql, params))[0];
@@ -153,14 +166,40 @@ app.post('/api/orders', route(async (req, res) => {
   }
 }));
 
+// Last-resort error response for Sequelize/auth endpoints. Never expose SQL details.
+app.use((error, _req, res, _next) => {
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Upload exceeds the allowed request size.',
+    });
+  }
+
+  if (error.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: 'Invalid request body.',
+    });
+  }
+
+  console.error('API error:', error.message);
+  return res.status(500).json({ error: 'Something went wrong.' });
+});
+
 (async () => {
   try {
-    await init();
-    const { n } = await one('SELECT COUNT(*) AS n FROM categories');
-    if (n === 0) { await seed(pool); console.log('Empty database detected - seeded sample data.'); }
+    if (shouldMigrateOnStart()) {
+      // Development: create missing base tables and apply pending migrations.
+      await runMigrations();
+    } else {
+      // Production: run npm run db:migrate during deployment, not on every restart.
+      await sequelize.authenticate();
+      await sequelize.query('SELECT 1 FROM admin_roles LIMIT 0');
+    }
+    // Only in development and explicitly enabled; never reseed existing admins.
+    await bootstrapOnDevelopmentStart();
+    // No automatic fake product/review seed on startup.
     app.listen(PORT, () => console.log(`Aayash E-Mart API running on http://localhost:${PORT}`));
   } catch (e) {
-    console.error(`Could not connect to MySQL (${e.code || e.message}). Check DB_* settings in backend/.env`);
+    console.error(`Backend startup failed (${e.code || e.message}). Check DB_* settings and run npm run db:migrate.`);
     process.exit(1);
   }
 })();

@@ -13,14 +13,20 @@ export default function AdminShell({ children }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
-    if (s) setSession(s); else router.replace('/login');
+    let active = true;
+    getSession().then((s) => {
+      if (!active) return;
+      if (s) setSession(s); else router.replace('/login');
+    }).catch(() => { if (active) router.replace('/login'); });
+    return () => { active = false; };
   }, [router]);
   useEffect(() => setOpen(false), [pathname]);
 
   if (!session) return <div className="grid min-h-screen place-items-center bg-taupe-50 text-taupe-600">Loading…</div>;
 
-  const signOut = () => { logout(); router.replace('/login'); };
+  const signOut = async () => {
+    try { await logout(); } finally { setSession(null); router.replace('/login'); router.refresh(); }
+  };
 
   return (
     <div className="min-h-screen bg-wash text-taupe-900 lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
