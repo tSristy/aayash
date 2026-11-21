@@ -1,2 +1,5 @@
 node_modules
 .env
+
+# Uploaded development images are persistent local data, not source code.
+uploads/

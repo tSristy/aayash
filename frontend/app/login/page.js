@@ -13,13 +13,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { if (getSession()) router.replace('/admin'); }, [router]);
+  useEffect(() => {
+    let active = true;
+    getSession().then((s) => { if (active && s) router.replace('/admin'); });
+    return () => { active = false; };
+  }, [router]);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (login(username, password)) router.replace('/admin');
-    else setError('Incorrect username or password.');
+    if (submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await login(username, password);
+      router.replace('/admin');
+      router.refresh();
+    } catch (err) { setError(err.message || 'Sign in failed.'); }
+    finally { setSubmitting(false); }
   };
 
   return (
@@ -52,7 +64,7 @@ export default function LoginPage() {
 
           {error && <p role="alert" className="-mt-2 text-sm text-danger">{error}</p>}
 
-          <button className="rounded-xl bg-primary py-3 font-bold text-taupe-900 transition-colors hover:bg-primary-hover">Sign in</button>
+          <button className="rounded-xl bg-primary py-3 font-bold text-taupe-900 transition-colors hover:bg-primary-hover" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
         </form>
         <p className="mt-6 text-center text-sm text-taupe-600"><Link href="/" className="hover:text-taupe-900">← Back to store</Link></p>
       </div>

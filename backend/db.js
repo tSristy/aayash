@@ -1,36 +1,58 @@
-const fs = require('fs');
-const path = require('path');
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
 const mysql = require('mysql2/promise');
 const { DB } = require('./config');
-
-const TABLES = [
-  'wishlists', 'reviews', 'order_items', 'orders', 'coupons', 'addresses', 'customers',
-  'product_images', 'product_variants', 'products', 'brands', 'categories', 'newsletter_subscribers',
-];
 
 const pool = mysql.createPool({
   ...DB,
   charset: 'utf8mb4',
   waitForConnections: true,
   connectionLimit: 10,
-  decimalNumbers: true, // return DECIMAL columns as numbers, not strings
+  decimalNumbers: true,
 });
 
-// Creates the database and tables if they do not exist yet.
-async function init({ reset = false } = {}) {
-  const { database, ...server } = DB;
-  const boot = await mysql.createConnection({ ...server, multipleStatements: true });
+/**
+ * Create the base commerce tables if they are missing.
+ * This does not delete data, reseed sample products, or reset any table.
+ * Versioned Sequelize migrations manage future schema changes.
+ */
+async function init() {
+  const { database, ...serverConfig } = DB;
+
+  if (!/^[a-zA-Z0-9_]+$/.test(database)) {
+    throw new Error('DB_NAME may contain only letters, numbers and underscores.');
+  }
+
+  const bootConnection = await mysql.createConnection({
+    ...serverConfig,
+    multipleStatements: true,
+  });
+
   try {
-    await boot.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-    await boot.query(`USE \`${database}\``);
-    if (reset) {
-      await boot.query('SET FOREIGN_KEY_CHECKS = 0');
-      for (const t of TABLES) await boot.query(`DROP TABLE IF EXISTS \`${t}\``);
-      await boot.query('SET FOREIGN_KEY_CHECKS = 1');
+    // Most production DB users cannot CREATE DATABASE. Only attempt to
+    // create it when it does not exist; otherwise use existing privileges.
+    const [databases] = await bootConnection.query(
+      'SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?',
+      [database]
+    );
+
+    if (databases.length === 0) {
+      await bootConnection.query(
+        `CREATE DATABASE \`${database}\` ` +
+        'CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+      );
     }
-    await boot.query(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
+
+    await bootConnection.query(`USE \`${database}\``);
+
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+
+    await bootConnection.query(schemaSql);
   } finally {
-    await boot.end();
+    await bootConnection.end();
   }
 }
 

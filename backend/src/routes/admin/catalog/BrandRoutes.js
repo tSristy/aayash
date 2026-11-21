@@ -1,0 +1,11 @@
+'use strict';
+const express = require('express');
+const controller = require('../../../controllers/catalog/BrandController');
+const { requireCatalogWriteOrigin } = require('../../../middleware/catalog-origin');
+const router = express.Router();
+router.get('/', controller.list);
+router.get('/lookup', controller.lookup);
+router.get('/:id', controller.get);
+router.post('/', requireCatalogWriteOrigin, controller.create);
+router.patch('/:id', requireCatalogWriteOrigin, controller.update);
+module.exports = router;
