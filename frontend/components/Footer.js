@@ -17,9 +17,11 @@ export default function Footer() {
           <Link className={linkCls} href="/products">All products</Link>
           <Link className={linkCls} href="/products?deal=1">Deals</Link>
           <Link className={linkCls} href="/cart">Your cart</Link>
+          <Link className={linkCls} href="/orders/tracking">Order tracking</Link>
         </div>
         <div>
           <h4 className={headingCls}>Help</h4>
+          <Link className={linkCls} href="/orders/tracking">Track your order</Link>
           <Link className={linkCls} href="/#delivery">Delivery</Link>
           <Link className={linkCls} href="/#delivery">Refunds</Link>
         </div>
