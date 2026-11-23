@@ -70,7 +70,7 @@ async function clearBusinessData() {
 
   console.log(`Connected to development database: ${connectedDatabase}`);
   console.log(`Clearing ${BUSINESS_TABLES.length} business tables.`);
-  console.log('Preserving Admin accounts, sessions, roles and schema migrations.');
+  console.log('Preserving Admin accounts, migrations and courier provider master definitions.');
 
   await sequelize.transaction(async (transaction) => {
     for (const table of BUSINESS_TABLES) {

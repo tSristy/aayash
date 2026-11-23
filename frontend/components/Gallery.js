@@ -1,24 +1,41 @@
 'use client';
+
 import { useState } from 'react';
+import CatalogImage from './CatalogImage';
 import ProductVisual from './ProductVisual';
 
-const ANGLES = ['Front', 'Side', 'Pack', 'Detail'];
-
 export default function Gallery({ product }) {
-  const imgs = product.images?.length ? product.images : [];
-  const slots = imgs.length ? imgs : ANGLES.map((label) => ({ label, url: product.image_url || '' }));
-  const [i, setI] = useState(0);
-  const current = slots[i]?.url ? { ...product, image_url: slots[i].url } : product;
+  const availableImages = product.images?.filter((image) => image.url) || [];
+  const images = availableImages.length
+    ? availableImages
+    : product.image_url
+      ? [{ url: product.image_url, alt: product.name }]
+      : [];
+  const [selected, setSelected] = useState(0);
+  const current = {
+    ...product,
+    image_url: images[selected]?.url || product.image_url,
+  };
 
   return (
-    <div className="grid grid-cols-[76px_1fr] items-start gap-3.5 sm:grid-cols-[88px_1fr]">
+    <div className="grid grid-cols-[64px_1fr] items-start gap-3.5 sm:grid-cols-[88px_1fr]">
       <div className="grid gap-3">
-        {slots.map((im, k) => (
-          <button key={k} type="button" onClick={() => setI(k)} aria-label={`Show view ${k + 1}`}
-            className={`grid aspect-square w-full place-items-center overflow-hidden border bg-white p-0 transition-colors ${k === i ? 'border-[#A65A3E]' : 'border-[#E2D9CE] hover:border-[#2E261F]'}`}>
-            {im.url
-              ? <img src={im.url} alt={im.alt || `${product.name} ${im.label || k + 1}`} className="h-full w-full object-cover" />
-              : <span className="text-3xl">{product.emoji}</span>}
+        {images.map((image, index) => (
+          <button
+            key={`${image.url}-${index}`}
+            type="button"
+            onClick={() => setSelected(index)}
+            aria-label={`Show product photo ${index + 1}`}
+            className={`aspect-square w-full overflow-hidden border bg-white transition-colors ${
+              index === selected ? 'border-[#A65A3E]' : 'border-[#E2D9CE] hover:border-[#2E261F]'
+            }`}
+          >
+            <CatalogImage
+              src={image.url}
+              alt={image.alt || `${product.name} photo ${index + 1}`}
+              className="h-full w-full"
+              imageClassName="object-cover"
+            />
           </button>
         ))}
       </div>

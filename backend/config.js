@@ -10,6 +10,4 @@ module.exports = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'aayash_emart',
   },
-  FREE_DELIVERY_OVER: 1000, // ৳
-  DELIVERY_FEE: 60,         // ৳
 };

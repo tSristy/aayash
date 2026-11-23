@@ -80,9 +80,9 @@ export default async function ProductPage({ params }) {
         </div>
       </Container>
 
-      {p.related.length > 0 && (
+      {p.related?.length > 0 && (
         <Section className="border-t border-[#E2D9CE]">
-          <SectionHead title="You may also like" href={`/products?category=${p.category_slug}`} />
+          <SectionHead title={p.related_scope === 'store' ? 'You may also like' : `More from ${p.category_name} & related categories`} href={`/products?category=${p.category_slug}`} />
           <ProductGrid>
             {p.related.map((r) => (
               <ProductCard key={r.id} p={r} />

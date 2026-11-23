@@ -13,7 +13,7 @@
     "admin:bootstrap": "node scripts/bootstrap-admin.js",
     "data:clear": "node scripts/clear-business-data.js",
     "db:status": "node scripts/db-status.js",
-    "seed:demo": "node scripts/seed-demo-catalog.js"
+    "seed:catalog": "node scripts/seed-catalog.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

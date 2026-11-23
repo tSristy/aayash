@@ -5,6 +5,15 @@ const definitions = {
   AdminRole: require('./admin/AdminRole'),
   AdminUser: require('./admin/AdminUser'),
   AdminSession: require('./admin/AdminSession'),
+  Order: require('./orders/Order'),
+  OrderItem: require('./orders/OrderItem'),
+  OrderStatusHistory: require('./orders/OrderStatusHistory'),
+  CourierProvider: require('./courier/CourierProvider'),
+  CourierShipment: require('./courier/CourierShipment'),
+  CourierTrackingEvent: require('./courier/CourierTrackingEvent'),
+  CourierApiRequest: require('./courier/CourierApiRequest'),
+  CourierWebhookEvent: require('./courier/CourierWebhookEvent'),
+  CustomerRiskCheck: require('./risk/CustomerRiskCheck'),
   Category: require('./catalog/Category'),
   Brand: require('./catalog/Brand'),
   Product: require('./catalog/Product'),
@@ -22,7 +31,7 @@ const models = Object.fromEntries(Object.entries(definitions).map(([key, define]
 const {
   AdminRole, AdminUser, AdminSession, Category, Brand, Product, ProductVariant,
   ProductType, AttributeDefinition, ProductTypeAttribute, ProductAttributeValue, ProductImage,
-  ProductOption, ProductOptionValue, VariantOptionValue,
+  ProductOption, ProductOptionValue, VariantOptionValue, Order, OrderItem, OrderStatusHistory,
 } = models;
 
 AdminRole.hasMany(AdminUser, { foreignKey: 'role_id', as: 'users' });
@@ -59,5 +68,34 @@ ProductVariant.hasMany(VariantOptionValue, { foreignKey: 'variant_id', as: 'sele
 VariantOptionValue.belongsTo(ProductVariant, { foreignKey: 'variant_id', as: 'variant' });
 ProductOptionValue.hasMany(VariantOptionValue, { foreignKey: 'option_value_id', as: 'variantAssignments' });
 VariantOptionValue.belongsTo(ProductOptionValue, { foreignKey: 'option_value_id', as: 'optionValue' });
+
+Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'items' });
+OrderItem.belongsTo(Order, { foreignKey: 'order_id', as: 'order' });
+Order.hasMany(OrderStatusHistory, { foreignKey: 'order_id', as: 'statusHistory' });
+OrderStatusHistory.belongsTo(Order, { foreignKey: 'order_id', as: 'order' });
+AdminUser.hasMany(OrderStatusHistory, { foreignKey: 'changed_by_admin_id', as: 'orderChanges' });
+OrderStatusHistory.belongsTo(AdminUser, { foreignKey: 'changed_by_admin_id', as: 'actor' });
+
+const {
+  CourierProvider,
+  CourierShipment,
+  CourierTrackingEvent,
+  CourierApiRequest,
+  CourierWebhookEvent,
+  CustomerRiskCheck,
+} = models;
+
+Order.hasMany(CourierShipment, { foreignKey: 'order_id', as: 'shipments' });
+CourierShipment.belongsTo(Order, { foreignKey: 'order_id', as: 'order' });
+CourierProvider.hasMany(CourierShipment, { foreignKey: 'provider_id', as: 'shipments' });
+CourierShipment.belongsTo(CourierProvider, { foreignKey: 'provider_id', as: 'provider' });
+CourierShipment.hasMany(CourierTrackingEvent, { foreignKey: 'shipment_id', as: 'events' });
+CourierTrackingEvent.belongsTo(CourierShipment, { foreignKey: 'shipment_id', as: 'shipment' });
+CourierProvider.hasMany(CourierApiRequest, { foreignKey: 'provider_id', as: 'apiRequests' });
+CourierApiRequest.belongsTo(CourierProvider, { foreignKey: 'provider_id', as: 'provider' });
+CourierProvider.hasMany(CourierWebhookEvent, { foreignKey: 'provider_id', as: 'webhooks' });
+CourierWebhookEvent.belongsTo(CourierProvider, { foreignKey: 'provider_id', as: 'provider' });
+Order.hasMany(CustomerRiskCheck, { foreignKey: 'order_id', as: 'riskChecks' });
+CustomerRiskCheck.belongsTo(Order, { foreignKey: 'order_id', as: 'order' });
 
 module.exports = { sequelize, ...models };
