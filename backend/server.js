@@ -95,6 +95,59 @@ app.post('/api/newsletter', route(async (req, res) => {
   res.status(201).json({ ok: true });
 }));
 
+//admin track
+app.get('/api/admin/orders', route(async (req, res) => {
+  const orders = await query('SELECT * FROM orders ORDER BY id DESC');
+
+  if (orders.length > 0) {
+    const ids = orders.map((o) => o.id);
+    const items = await query(
+      `SELECT * FROM order_items WHERE order_id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+    const byOrder = {};
+    for (const item of items) (byOrder[item.order_id] ||= []).push(item);
+    for (const o of orders) o.items = byOrder[o.id] || [];
+  }
+
+  res.json(orders);
+}));
+
+app.patch('/api/admin/orders/:id/status', route(async (req, res) => {
+  const allowed = ['placed', 'confirmed', 'packed', 'out_for_delivery', 'delivered', 'cancelled'];
+  const { status } = req.body || {};
+  if (!allowed.includes(status)) throw new HttpError(400, 'Invalid order status.');
+
+  await query('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id]);
+  res.json({ ok: true, status });
+}));
+
+//tracking
+
+app.get('/api/orders', route(async (req, res) => {
+  const rawPhone = String(req.query.phone || '').replace(/[\s\-+]/g, '').replace(/^88/, '');
+  if (!rawPhone) throw new HttpError(400, 'Phone number is required.');
+
+  const orders = await query(
+    `SELECT * FROM orders
+     WHERE REPLACE(REPLACE(REPLACE(guest_phone, ' ', ''), '-', ''), '+88', '') LIKE ?
+     ORDER BY id DESC`,
+    [`%${rawPhone}%`]
+  );
+
+  if (orders.length > 0) {
+    const ids = orders.map((o) => o.id);
+    const items = await query(
+      `SELECT * FROM order_items WHERE order_id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+    const byOrder = {};
+    for (const item of items) (byOrder[item.order_id] ||= []).push(item);
+    for (const o of orders) o.items = byOrder[o.id] || [];
+  }
+
+  res.json(orders);
+}));
 // Prices are always recalculated from the database - the client only sends variant ids and quantities.
 app.post('/api/orders', route(async (req, res) => {
   const { customer = {}, address = {}, items, paymentMethod = 'cod', couponCode, note } = req.body || {};

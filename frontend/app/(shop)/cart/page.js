@@ -54,13 +54,22 @@ export default function CartPage() {
         <p className="border-y border-[#E2D9CE] py-3 text-sm text-stone-600">
           Total to pay on delivery: <strong className="font-semibold text-[#A65A3E]">{money(order.total)}</strong>
         </p>
-        <Button
-          href="/products"
-          size="lg"
-          className="!rounded-none !border-none !bg-[#A65A3E] !px-8 !py-3.5 !text-xs !font-semibold !uppercase !tracking-[0.2em] !text-white hover:!bg-[#8F4B32]"
-        >
-          Continue shopping →
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            href={`/orders/tracking?phone=${encodeURIComponent(form.phone)}`}
+            size="lg"
+            className="!rounded-none !border-none !bg-[#A65A3E] !px-8 !py-3.5 !text-xs !font-semibold !uppercase !tracking-[0.2em] !text-white hover:!bg-[#8F4B32]"
+          >
+            Track your order →
+          </Button>
+          <Button
+            href="/products"
+            size="lg"
+            className="!rounded-none !border !border-[#A65A3E] !bg-transparent !px-8 !py-3.5 !text-xs !font-semibold !uppercase !tracking-[0.2em] !text-[#A65A3E] hover:!bg-[#A65A3E] hover:!text-white"
+          >
+            Continue shopping →
+          </Button>
+        </div>
       </div>
     </Section>
   );
