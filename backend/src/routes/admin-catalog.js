@@ -4,6 +4,7 @@ const express = require('express');
 
 const { requireAdmin } = require('../auth/session');
 const catalogOverview = require('../controllers/catalog/CatalogOverviewController');
+const dashboardController = require('../controllers/catalog/DashboardController');
 const productTypeRoutes = require('./admin/catalog/ProductTypeRoutes');
 const attributeRoutes = require('./admin/catalog/AttributeDefinitionRoutes');
 const productRoutes = require('./admin/catalog/ProductRoutes');
@@ -22,6 +23,7 @@ router.use((_req, res, next) => {
 });
 
 router.get('/overview', catalogOverview.overview);
+router.get('/dashboard', dashboardController.dashboard);
 router.use('/product-types', productTypeRoutes);
 router.use('/attributes', attributeRoutes);
 router.use('/products', productRoutes);

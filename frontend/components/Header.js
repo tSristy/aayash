@@ -23,7 +23,7 @@ export default function Header() {
         </Link>
 
         <nav className="hidden gap-6 text-xs font-semibold uppercase tracking-widest text-[#2E261F] md:flex" aria-label="Main">
-          {[['/', 'Home'], ['/products', 'Shop all'], ['/products?deal=1', 'Deals']].map(([href, label]) => (
+          {[['/', 'Home'], ['/products', 'Shop all'], ['/products?deal=1', 'Deals'], ['/orders/tracking', 'Track order']].map(([href, label]) => (
             <Link key={label} href={href} className="border-b-2 border-transparent py-1.5 transition-colors hover:border-[#A65A3E] hover:text-[#A65A3E]">
               {label}
             </Link>
@@ -38,6 +38,13 @@ export default function Header() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           </button>
         </form>
+
+        <Link
+          href="/orders/tracking"
+          className="order-2 ml-auto text-xs font-semibold uppercase tracking-wider text-[#A65A3E] underline-offset-4 hover:underline md:hidden"
+        >
+          Track order
+        </Link>
 
         <Link href="/cart" className="relative ml-auto grid h-11 w-11 place-items-center rounded-full bg-[#A65A4E] text-white transition-colors hover:bg-[#955110] md:ml-0" aria-label={`Cart, ${count} items`}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2" /><circle cx="9.5" cy="20" r="1.2" /><circle cx="17" cy="20" r="1.2" /></svg>

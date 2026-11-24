@@ -9,12 +9,13 @@ import { Section, SectionHead } from '@/components/ui/Section';
 import { safe } from '@/lib/api';
 import { money } from '@/lib/format';
 import Carousel from '@/components/Carousel';
+import CatalogImage from '@/components/CatalogImage';
 
 const WHY = [
   ['Picked fresh daily', 'Produce arrives each morning and is packed to order.'],
   ['Cold chain for meat and fish', 'Kept chilled from supplier to your door.'],
   ['Pay when it arrives', 'Cash on delivery is available on every order.'],
-  ['Easy refunds', 'Not happy with an item? Tell us within 24 hours.'],
+  ['Order support', 'Contact our team if there is a problem with your order.'],
 ];
 
 const primaryBtn = '!rounded-none !border-0 !bg-[#A65A3E] !px-8 !py-3.5 !text-xs !font-semibold !uppercase !tracking-widest !text-white hover:!bg-[#8F4B32]';
@@ -25,26 +26,21 @@ export default async function Home() {
     safe('/api/products?sort=popular&limit=8', []),
   ]);
 
-  const wanted = ['meat', 'vegetable', 'dairy'];
-  const pickedCats = [];
-  for (const key of wanted) {
-    const match = categories.find(
-      (c) => !pickedCats.some((p) => p.id === c.id) && `${c.slug} ${c.name}`.toLowerCase().includes(key)
-    );
-    if (match) pickedCats.push(match);
-  }
-  for (const c of categories) {
-    if (pickedCats.length >= 3) break;
-    if (!pickedCats.some((p) => p.id === c.id)) pickedCats.push(c);
-  }
-  const carouselCats = pickedCats;
+  // The storefront uses the database category tree, never a fixed set of
+  // category names. Don't render blank carousels for empty categories.
+  const availableCategories = categories.filter((cat) => Number(cat.product_count) > 0);
+  const parentIds = new Set(availableCategories.map((cat) => Number(cat.parent_id)).filter(Boolean));
+  const carouselCategories = availableCategories.filter((cat) => (
+    !parentIds.has(Number(cat.id)) || Number(cat.own_product_count) > 0
+  ));
 
-  const catSections = await Promise.all(
-    carouselCats.map(async (cat) => ({
+  const allSections = await Promise.all(
+    carouselCategories.map(async (cat) => ({
       cat,
-      items: await safe(`/api/products?category=${cat.slug}&limit=10`, []),
+      items: await safe(`/api/products?category=${encodeURIComponent(cat.slug)}&limit=12`, []),
     }))
   );
+  const catSections = allSections.filter((section) => section.items.length > 0);
   const picks = best.slice(0, 3);
 
   return (
@@ -61,10 +57,10 @@ export default async function Home() {
 
           <div className="relative z-10">
             <h1 className="mb-5 max-w-[14ch] font-serif text-[clamp(38px,5vw,50px)] font-normal leading-[1.15] text-white">
-              <span className="bg-[#A65A3E] px-2.5 py-0.5 box-decoration-clone">Fresh groceries, at</span> your door by evening.
+              <span className="bg-[#A65A3E] px-2.5 py-0.5 box-decoration-clone">Fresh groceries,</span> ordered with ease.
             </h1>
             <p className="max-w-[46ch] text-base leading-relaxed text-stone-200 sm:text-lg">
-              Vegetables, fish, meat, dairy and pantry staples from trusted suppliers. Order before 4 pm for same-day delivery in Dhaka.
+              Explore food and pantry essentials. Delivery availability and timing are confirmed after ordering.
             </p>
 
             <div className="my-8 flex flex-wrap gap-3.5">
@@ -76,7 +72,7 @@ export default async function Home() {
             </div>
 
             <ul className="flex flex-wrap gap-5 text-xs font-medium text-stone-200">
-              {['Free delivery over ৳1,000', 'Not fresh? Full refund', 'Pay on delivery'].map((t) => (
+              {['Dhaka delivery ৳70 · Outside ৳120', 'Order support available', 'Pay on delivery'].map((t) => (
                 <li key={t}><span className="text-[#E09F87]">✓ </span>{t}</li>
               ))}
             </ul>
@@ -88,7 +84,13 @@ export default async function Home() {
             {picks.map((p, i) => (
               <Link key={p.id} href={`/products/${p.slug}`}
                 className={`flex items-center gap-3.5 border border-white/15 bg-[#F5F1EB] px-4 py-3.5 text-[#2E261F] transition-transform hover:translate-x-1 ${i === 1 ? 'sm:ml-6' : ''}`}>
-                <span className="grid h-14 w-14 shrink-0 place-items-center bg-[#E8E0D5] text-[34px]">{p.emoji}</span>
+                <CatalogImage
+                  src={p.image_url}
+                  alt={p.name}
+                  className="h-14 w-14 shrink-0"
+                  imageClassName="object-cover"
+                  fallbackText="No photo"
+                />
                 <span className="flex-1 font-serif text-base font-medium">
                   {p.name}
                   <small className="block font-sans text-xs font-normal text-stone-500">{p.variant_label}</small>
@@ -103,12 +105,23 @@ export default async function Home() {
       <Section>
         <SectionHead title="Shop by category" href="/products" />
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4">
-          {categories.map((c) => (
+          {availableCategories.map((c) => (
             <Link key={c.id} href={`/products?category=${c.slug}`}
-              className="group grid justify-items-center gap-1.5 border border-[#E2D9CE] bg-[#F5F1EB] px-4 py-6 text-center transition-colors hover:border-[#A65A3E] hover:bg-white">
-              <span className="mb-2 grid h-16 w-16 place-items-center bg-[#E8E0D5] text-[36px] transition-transform group-hover:scale-105">{c.emoji}</span>
-              <strong className="font-serif text-base font-medium text-[#2E261F]">{c.name}</strong>
-              <small className="text-[11px] uppercase tracking-wider text-stone-500">{c.product_count} items</small>
+              className="group overflow-hidden border border-[#E2D9CE] bg-[#F5F1EB] transition-all hover:border-[#A65A3E] hover:bg-white hover:shadow-sm">
+              <div className="aspect-[4/3] overflow-hidden bg-[#E8E0D5]">
+                <CatalogImage
+                  src={c.image_url}
+                  alt={`${c.name} category`}
+                  className="h-full w-full transition-transform duration-300 group-hover:scale-105"
+                  imageClassName="object-cover"
+                />
+              </div>
+              <div className="grid justify-items-center gap-1.5 px-3 py-4 text-center">
+                <strong className="font-serif text-base font-medium text-[#2E261F]">{c.name}</strong>
+                <small className="text-[11px] uppercase tracking-wider text-stone-500">
+                  {c.product_count} {Number(c.product_count) === 1 ? 'item' : 'items'}
+                </small>
+              </div>
             </Link>
           ))}
         </div>

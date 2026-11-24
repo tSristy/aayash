@@ -2,29 +2,29 @@
 
 const fixtures = require('./fixtures');
 
-const CONFIRMATION_TOKEN = 'SEED_AYASHMART_DEMO';
+const CONFIRMATION_TOKEN = 'SEED_AYASHMART_CATALOG';
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
-function assertDemoSeedAllowed(env, confirmationToken) {
+function assertCatalogSeedAllowed(env, confirmationToken) {
     if (confirmationToken !== CONFIRMATION_TOKEN) {
         throw new Error(
-            `Confirmation required. Run: npm run seed:demo -- ${CONFIRMATION_TOKEN}`
+            `Confirmation required. Run: npm run seed:catalog -- ${CONFIRMATION_TOKEN}`
         );
     }
 
     if (env.NODE_ENV !== 'development') {
-        throw new Error('Demo seeding is available only when NODE_ENV=development.');
+        throw new Error('Catalog seeding is available only when NODE_ENV=development.');
     }
 
     const host = String(env.DB_HOST || '127.0.0.1').toLowerCase();
     const database = String(env.DB_NAME || 'aayash_emart');
 
     if (!LOCAL_HOSTS.has(host)) {
-        throw new Error('Demo seeding is restricted to a local MariaDB server.');
+        throw new Error('Catalog seeding is restricted to a local MariaDB server.');
     }
 
-    if (/prod|production|live|staging/i.test(database)) {
-        throw new Error('Refusing to seed a database whose name indicates production.');
+    if (database !== 'aayash_emart') {
+        throw new Error('Catalog seeding is permitted only for the aayash_emart database.');
     }
 }
 
@@ -66,7 +66,8 @@ function validateFixtures(plan = fixtures) {
             throw new Error(`Unknown category for ${product.slug}`);
         }
 
-        if (!brandSlugs.has(product.brandSlug) || !typeCodes.has(product.typeCode)) {
+        if ((product.brandSlug && !brandSlugs.has(product.brandSlug)) ||
+            !typeCodes.has(product.typeCode)) {
             throw new Error(`Unknown brand or product type for ${product.slug}`);
         }
 
@@ -147,7 +148,7 @@ function buildSpecificationValue(attribute, value) {
     }
 }
 
-async function seedDemoCatalog(models, plan = fixtures) {
+async function seedCatalog(models, plan = fixtures) {
     validateFixtures(plan);
 
     const {
@@ -200,7 +201,8 @@ async function seedDemoCatalog(models, plan = fixtures) {
                     name: category.name,
                     slug: category.slug,
                     parent_id: parentId,
-                    emoji: category.emoji,
+                    emoji: category.emoji || null,
+                    image_url: null,
                     sort_order: category.sort_order,
                     is_active: true,
                 },
@@ -282,17 +284,26 @@ async function seedDemoCatalog(models, plan = fixtures) {
                     name: product.name,
                     slug: product.slug,
                     category_id: categoryIds.get(product.categorySlug),
-                    brand_id: brandIds.get(product.brandSlug),
+                    brand_id: product.brandSlug ? brandIds.get(product.brandSlug) : null,
                     product_type_id: typeIds.get(product.typeCode),
                     short_desc: product.short_desc,
                     description: product.description,
-                    emoji: product.emoji,
+                    emoji: product.emoji || null,
+                    image_url: null,
                     is_featured: Boolean(product.featured),
                     is_active: true,
                     status: 'active',
                 },
                 'products'
             );
+
+            if (Number(record.category_id) !== Number(categoryIds.get(product.categorySlug)) ||
+                Number(record.product_type_id) !== Number(typeIds.get(product.typeCode))) {
+                throw new Error(
+                    `Existing product slug ${product.slug} uses a different category or product type. ` +
+                    'Review it in Admin rather than silently overwriting it.'
+                );
+            }
 
             for (const [code, value] of Object.entries(product.specs)) {
                 await getOrCreate(
@@ -378,8 +389,8 @@ async function seedDemoCatalog(models, plan = fixtures) {
 
 module.exports = {
     CONFIRMATION_TOKEN,
-    assertDemoSeedAllowed,
+    assertCatalogSeedAllowed,
     validateFixtures,
     buildSpecificationValue,
-    seedDemoCatalog,
+    seedCatalog,
 };

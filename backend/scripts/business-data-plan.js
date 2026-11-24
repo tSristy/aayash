@@ -7,6 +7,12 @@
  * Admin authentication and migration history are NEVER part of this list.
  */
 const BUSINESS_TABLES = Object.freeze([
+  'courier_tracking_events',
+  'courier_api_requests',
+  'courier_webhook_events',
+  'customer_risk_checks',
+  'courier_shipments',
+  'order_status_history',
   'order_items',
   'wishlists',
   'reviews',
@@ -34,6 +40,8 @@ const PRESERVED_TABLES = Object.freeze([
   'admin_users',
   'admin_sessions',
   'schema_migrations',
+  // Stable provider master definitions are needed after a development reset.
+  'courier_providers',
 ]);
 
 const RESET_CONFIRMATION = 'DELETE_AYASHMART_DEV_DATA';

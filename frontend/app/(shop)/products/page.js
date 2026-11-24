@@ -38,7 +38,7 @@ export default async function Products({ searchParams }) {
           <Pill href={qs({ category: '' })} active={!category} className={catPill(!category)}>All</Pill>
           {categories.map((c) => (
             <Pill key={c.id} href={qs({ category: c.slug })} active={category === c.slug} className={catPill(category === c.slug)}>
-              {c.emoji} {c.name}
+              {c.name}
             </Pill>
           ))}
         </div>

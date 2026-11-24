@@ -34,6 +34,13 @@ const REQUIRED_TABLES = [
   'product_options',
   'product_option_values',
   'variant_option_values',
+  'order_status_history',
+  'courier_providers',
+  'courier_shipments',
+  'courier_tracking_events',
+  'courier_api_requests',
+  'customer_risk_checks',
+  'courier_webhook_events',
 ];
 
 function migrationFiles() {
@@ -80,6 +87,7 @@ async function verifyRequiredTables() {
     ['brands', ['is_active']],
     ['products', ['product_type_id', 'status']],
     ['product_images', ['variant_id']],
+    ['courier_providers', ['is_archived', 'contact_phone', 'website_url', 'tracking_url_template', 'notes']],
   ]) {
     const existingColumns = await queryInterface.describeTable(table);
     const missingColumns = requiredColumns.filter(column => !existingColumns[column]);

@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
 import Icon from '@/components/admin/Icon';
-import { API } from '@/lib/api';
+import CopyIconButton from '@/components/ui/CopyIconButton';
+import {
+  CatalogLoadingRows,
+  CatalogPagination,
+} from '@/components/admin/catalog/CatalogListControls';
 import { money } from '@/lib/format';
 
 const STATUS_OPTIONS = [
@@ -14,277 +19,363 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled', badge: 'bg-red-100 text-red-800' },
 ];
 
+const ALLOWED_NEXT_STATUS = {
+  placed: ['confirmed', 'cancelled'],
+  confirmed: ['packed', 'cancelled'],
+  packed: ['out_for_delivery', 'cancelled'],
+  out_for_delivery: ['delivered'],
+  delivered: [],
+  cancelled: [],
+};
+
+const inputClass = 'rounded-xl border border-taupe-200 bg-wash px-3 py-2.5 text-sm text-taupe-900 focus:border-primary focus:bg-white focus:outline-none';
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [payment, setPayment] = useState('all');
+  const [courier, setCourier] = useState('all');
+  const [courierOptions, setCourierOptions] = useState([]);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [statusCounts, setStatusCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [queryText, setQueryText] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [message, setMessage] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
-
-  const loadOrders = async () => {
-    setLoading(true);
-    setError('');
-    try {
-     const res = await fetch(`${API}/api/admin/orders`);
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error('Admin orders endpoint (GET /api/admin/orders) is not available on the backend yet.');
-      }
-      if (!res.ok) throw new Error(data.error || 'Failed to load orders.');
-      setOrders(Array.isArray(data) ? data : data.orders || []);
-    } catch (err) {
-      setError(
-        err.message === 'Failed to fetch'
-          ? 'Cannot reach the server. Check that the backend is running.'
-          : err.message
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
-    loadOrders();
+    const controller = new AbortController();
+    async function loadCouriers() {
+      try {
+        const response = await fetch('/api/admin/couriers/providers/options?scope=all', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!controller.signal.aborted) setCourierOptions(data.items || []);
+      } catch (error) {
+        // Orders are still searchable when courier settings are temporarily unavailable.
+      }
+    }
+    loadCouriers();
+    return () => controller.abort();
   }, []);
 
-  const updateStatus = async (orderId, newStatus) => {
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get('search');
+    if (initial) {
+      setSearch(initial);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, status, payment, courier, from, to]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadOrders() {
+      setLoading(true);
+      setError('');
+
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (status !== 'all') params.set('status', status);
+      if (payment !== 'all') params.set('payment', payment);
+      if (courier !== 'all') params.set('courier', courier);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+
+      try {
+        const response = await fetch(`/api/admin/orders?${params}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Could not load orders.');
+        }
+
+        if (controller.signal.aborted) return;
+
+        setOrders(payload.items || []);
+        setTotal(payload.total || 0);
+        setTotalPages(payload.totalPages || 1);
+        setStatusCounts(payload.statusCounts || {});
+      } catch (reason) {
+        if (reason.name !== 'AbortError') {
+          setError(reason.message || 'Order lookup failed.');
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadOrders();
+    return () => controller.abort();
+  }, [page, limit, debouncedSearch, status, payment, courier, from, to, refreshIndex]);
+
+  function chooseStatus(value) {
+    setStatus(value);
+    setPage(1);
+  }
+
+  async function updateStatus(orderId, nextStatus) {
+    if (nextStatus === 'cancelled' && !window.confirm('Cancel this order and release reserved stock?')) {
+      return;
+    }
+
     setUpdatingId(orderId);
     setError('');
-    try {
-   const res = await fetch(`${API}/api/admin/orders/${orderId}/status`, {
-  method: 'PATCH',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ status: newStatus }),
-});
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not update order status.');
 
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-      );
-    } catch (err) {
-      setError(err.message);
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Could not update order.');
+      }
+
+      setMessage('Order status updated.');
+      setRefreshIndex((value) => value + 1);
+    } catch (reason) {
+      setError(reason.message || 'Order update failed.');
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  const list = {
+    page,
+    limit,
+    total,
+    totalPages,
+    loading,
+    setPage,
+    changeLimit(value) {
+      setLimit(Number(value));
+      setPage(1);
+    },
   };
 
-  const filteredOrders = useMemo(() => {
-    const q = queryText.trim().toLowerCase();
-    return orders.filter((o) => {
-      const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
-      const matchesQuery =
-        !q ||
-        String(o.order_no || '').toLowerCase().includes(q) ||
-        String(o.guest_name || '').toLowerCase().includes(q) ||
-        String(o.guest_phone || '').toLowerCase().includes(q);
-      return matchesStatus && matchesQuery;
-    });
-  }, [orders, queryText, statusFilter]);
-
-  const getBadge = (status) => {
-    const found = STATUS_OPTIONS.find((s) => s.value === status);
-    return found ? found.badge : 'bg-taupe-100 text-taupe-800';
-  };
+  const totalForChips = Object.values(statusCounts).reduce((sum, n) => sum + Number(n), 0);
 
   return (
     <div className="grid gap-6">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-taupe-900">Orders &amp; Tracking</h1>
           <p className="mt-1 text-sm text-taupe-600">
-            View all customer orders and update live delivery tracking statuses.
+            Search and filter orders from the database, manage status and contact customers.
           </p>
         </div>
         <button
           type="button"
-          onClick={loadOrders}
-          disabled={loading}
-          className="rounded-xl border border-taupe-200 bg-white px-4 py-2.5 text-sm font-bold text-taupe-900 transition-colors hover:bg-wash"
+          onClick={() => setRefreshIndex((value) => value + 1)}
+          className="rounded-xl border border-taupe-200 bg-white px-4 py-2.5 text-sm font-bold hover:bg-wash"
         >
-          {loading ? 'Refreshing…' : 'Refresh'}
+          Refresh
         </button>
       </div>
 
-      {/* Search & Status Filters */}
-      <div className="grid gap-4 rounded-2xl border border-taupe-200 bg-white p-4 sm:grid-cols-[1fr_auto]">
-        <div className="relative">
-          <input
-            type="text"
-            value={queryText}
-            onChange={(e) => setQueryText(e.target.value)}
-            placeholder="Search by order no, customer name, or phone…"
-            className="w-full rounded-xl border border-taupe-200 bg-wash px-4 py-2.5 text-sm text-taupe-900 placeholder:text-taupe/70 focus:border-primary focus:bg-white focus:outline-none"
-          />
-        </div>
+      <section className="grid gap-4 rounded-2xl border border-taupe-200 bg-white p-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search order number, customer name or phone…"
+          aria-label="Search orders"
+          className={`w-full ${inputClass}`}
+        />
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setStatusFilter('all')}
-            className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
-              statusFilter === 'all'
-                ? 'bg-primary text-taupe-900'
-                : 'bg-wash text-taupe-600 hover:text-taupe-900'
-            }`}
+            onClick={() => chooseStatus('all')}
+            className={`rounded-xl px-3 py-2 text-xs font-bold ${status === 'all' ? 'bg-primary text-taupe-900' : 'bg-wash text-taupe-600'}`}
           >
-            All ({orders.length})
+            All ({totalForChips})
           </button>
-          {STATUS_OPTIONS.map((st) => (
+          {STATUS_OPTIONS.map((option) => (
             <button
-              key={st.value}
+              key={option.value}
               type="button"
-              onClick={() => setStatusFilter(st.value)}
-              className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
-                statusFilter === st.value
-                  ? 'bg-primary text-taupe-900'
-                  : 'bg-wash text-taupe-600 hover:text-taupe-900'
-              }`}
+              onClick={() => chooseStatus(option.value)}
+              className={`rounded-xl px-3 py-2 text-xs font-bold ${status === option.value ? 'bg-primary text-taupe-900' : 'bg-wash text-taupe-600'}`}
             >
-              {st.label}
+              {option.label} ({statusCounts[option.value] || 0})
             </button>
           ))}
         </div>
-      </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="grid gap-1 text-xs text-taupe-600">
+            Payment Status
+            <select className={inputClass} value={payment} onChange={(e) => setPayment(e.target.value)}>
+              <option value="all">All payments</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="failed">Failed</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-taupe-600">
+            Courier
+            <select className={inputClass} value={courier} onChange={(e) => setCourier(e.target.value)}>
+              <option value="all">All couriers</option>
+              <option value="unassigned">Not actively assigned</option>
+              {courierOptions.map((item) => (
+                <option key={item.id} value={item.code}>{item.name}{item.is_archived ? ' (archived)' : ''}</option>
+              ))}
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="grid gap-1 text-xs text-taupe-600">
+              From
+              <input type="date" className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} />
+            </label>
+            <label className="grid gap-1 text-xs text-taupe-600">
+              To
+              <input type="date" className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} />
+            </label>
+          </div>
+        </div>
+      </section>
 
       {error && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
-        </div>
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>
       )}
+      {message && <p role="status" className="text-sm text-taupe-700">{message}</p>}
 
-      {/* Orders Table */}
       <div className="overflow-hidden rounded-2xl border border-taupe-200 bg-white">
-        {loading ? (
-          <p className="p-8 text-center text-sm text-taupe-600">Loading orders…</p>
-        ) : filteredOrders.length === 0 ? (
-          <p className="p-8 text-center text-sm text-taupe-600">No matching orders found.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-taupe-200 bg-wash text-xs font-bold uppercase tracking-wider text-taupe-600">
-                  <th className="px-5 py-3.5">Order</th>
-                  <th className="px-5 py-3.5">Customer</th>
-                  <th className="px-5 py-3.5">Address</th>
-                  <th className="px-5 py-3.5">Total</th>
-                  <th className="px-5 py-3.5">Tracking Status</th>
-                  <th className="px-5 py-3.5 text-right">Details</th>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-taupe-200 bg-wash text-xs font-bold uppercase tracking-wider text-taupe-600">
+                <th className="px-5 py-3.5">Order</th>
+                <th className="px-5 py-3.5">Customer &amp; Phone</th>
+                <th className="px-5 py-3.5">Total</th>
+                <th className="px-5 py-3.5">Courier</th>
+                <th className="px-5 py-3.5">Status</th>
+                <th className="px-5 py-3.5 text-right">View</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-taupe-200">
+              {loading ? (
+                <CatalogLoadingRows colSpan={6} />
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-taupe-600">No matching orders found.</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-taupe-200">
-                {filteredOrders.map((order) => {
-                  const isExpanded = expandedId === order.id;
-                  return (
-                    <>
-                      <tr key={order.id} className="hover:bg-wash/50">
-                        <td className="px-5 py-4">
-                          <p className="font-bold text-taupe-900">{order.order_no}</p>
-                          {order.created_at && (
-                            <p className="text-xs text-taupe-600">
-                              {new Date(order.created_at).toLocaleDateString()}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="font-semibold text-taupe-900">{order.guest_name}</p>
-                          <p className="text-xs text-taupe-600">{order.guest_phone}</p>
-                        </td>
-                        <td className="max-w-[220px] px-5 py-4 text-xs text-taupe-700">
-                          {order.address_line}
-                          {order.area ? `, ${order.area}` : ''}
-                          {order.city ? `, ${order.city}` : ''}
-                        </td>
-                        <td className="px-5 py-4 font-bold text-taupe-900">
-                          {money(order.total)}
-                          <span className="block text-[11px] font-normal uppercase text-taupe-600">
-                            {order.payment_method || 'cod'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-block rounded-lg px-2.5 py-1 text-xs font-bold ${getBadge(
-                                order.status
-                              )}`}
-                            >
-                              {STATUS_OPTIONS.find((s) => s.value === order.status)?.label ||
-                                order.status}
-                            </span>
-                            <select
-                              aria-label={`Change status for ${order.order_no}`}
-                              disabled={updatingId === order.id}
-                              value={order.status || 'placed'}
-                              onChange={(e) => updateStatus(order.id, e.target.value)}
-                              className="rounded-lg border border-taupe-200 bg-white px-2.5 py-1 text-xs font-semibold text-taupe-900 focus:border-primary focus:outline-none"
-                            >
-                              {STATUS_OPTIONS.map((st) => (
-                                <option key={st.value} value={st.value}>
-                                  {st.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-taupe-200 px-3 py-1.5 text-xs font-bold text-taupe-900 hover:bg-wash"
-                          >
-                            {isExpanded ? 'Hide' : 'Items'}
-                          </button>
-                        </td>
-                      </tr>
-
-                      {isExpanded && (
-                        <tr key={`${order.id}-details`} className="bg-wash/60">
-                          <td colSpan={6} className="px-6 py-4">
-                            <div className="grid gap-2 text-xs text-taupe-800">
-                              <p className="font-bold uppercase tracking-wider text-taupe-600">
-                                Ordered Items
-                              </p>
-                              {Array.isArray(order.items) && order.items.length > 0 ? (
-                                <ul className="divide-y divide-taupe-200 rounded-xl border border-taupe-200 bg-white px-4">
-                                  {order.items.map((item, idx) => (
-                                    <li
-                                      key={item.id || idx}
-                                      className="flex justify-between py-2.5 text-sm"
-                                    >
-                                      <span>
-                                        {item.name}{' '}
-                                        {item.variant_label ? `(${item.variant_label})` : ''} ×{' '}
-                                        {item.qty}
-                                      </span>
-                                      <span className="font-bold">{money(item.line_total)}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-taupe-600">No item details returned.</p>
-                              )}
-                              {order.note && (
-                                <p className="mt-1">
-                                  <strong>Note:</strong> {order.note}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+              ) : orders.map((order) => {
+                const option = STATUS_OPTIONS.find((item) => item.value === order.status);
+                const needsCourierBooking = order.status === 'packed' && !Boolean(order.has_active_shipment);
+                return (
+                  <tr key={order.id} className="hover:bg-wash/50">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-taupe-900">{order.order_no}</p>
+                      <p className="mt-1 text-xs text-taupe-600">{new Date(order.created_at).toLocaleDateString()}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-taupe-900">{order.guest_name}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <a
+                          href={`tel:${String(order.guest_phone || '').replace(/[^0-9+]/g, '')}`}
+                          className="text-primary-deep underline underline-offset-2"
+                        >
+                          {order.guest_phone}
+                        </a>
+                        <CopyIconButton
+                          value={order.guest_phone}
+                          label={`Copy ${order.guest_phone}`}
+                          className="!h-8 !w-8 text-taupe-700"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 font-bold">{money(order.total)}</td>
+                    <td className="px-5 py-4 text-xs">
+                      <p>{order.courier_name || 'Not assigned'}</p>
+                      {needsCourierBooking && (
+                        <Link
+                          href={`/admin/orders/${order.id}#courier-shipment`}
+                          className="mt-2 inline-flex items-center rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary-deep hover:bg-primary/20"
+                        >
+                          Book Courier
+                        </Link>
                       )}
-                    </>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-block rounded-lg px-2.5 py-1 text-xs font-bold ${option?.badge || 'bg-wash'}`}>
+                        {option?.label || order.status}
+                      </span>
+                      <select
+                        aria-label={`Update status for ${order.order_no}`}
+                        className="mt-2 block rounded-lg border border-taupe-200 bg-white p-1.5 text-xs"
+                        value={order.status}
+                        disabled={updatingId === order.id}
+                        onChange={(event) => updateStatus(order.id, event.target.value)}
+                      >
+                        {STATUS_OPTIONS.filter((item) => (
+                          item.value === order.status || (
+                            ALLOWED_NEXT_STATUS[order.status]?.includes(item.value) &&
+                            !(item.value === 'out_for_delivery' && needsCourierBooking)
+                          )
+                        )).map((item) => (
+                          <option key={item.value} value={item.value}>{item.label}</option>
+                        ))}
+                      </select>
+                      {needsCourierBooking && (
+                        <p className="mt-1 max-w-44 text-xs leading-relaxed text-amber-800">
+                          Record a shipment before dispatch.
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        href={`/admin/orders/${order.id}`}
+                        aria-label={`View order ${order.order_no}`}
+                        title="View order details"
+                        className="inline-flex items-center justify-center rounded-lg border border-taupe-200 p-2 hover:bg-wash"
+                      >
+                        <Icon name="eye" size={18} />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <CatalogPagination list={list} />
       </div>
     </div>
   );

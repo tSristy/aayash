@@ -1,6 +1,8 @@
 export const NAV = [
   { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
   { href: '/admin/orders', label: 'Orders', icon: 'orders' },
+  { href: '/admin/couriers', label: 'Couriers', icon: 'store' },
+  { href: '/admin/shipments', label: 'Shipments', icon: 'orders' },
   { href: '/admin/products', label: 'Products', icon: 'products' },
   { href: '/admin/categories', label: 'Categories', icon: 'categories' },
   { href: '/admin/brands', label: 'Brands', icon: 'brands' },
