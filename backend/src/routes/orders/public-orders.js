@@ -8,13 +8,12 @@ const router = express.Router();
 
 router.post('/', publicRateLimit({ max: 8 }), orders.createOrder);
 router.post('/track', publicRateLimit({ max: 12 }), orders.trackOrder);
+router.post('/draft', publicRateLimit({ max: 40 }), orders.saveDraft);
 
 // Remove the legacy, privacy-violating phone-only search endpoint.
 router.get('/', (_req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.status(410).json({
-    error: 'Phone-only order lookup is discontinued. Use your order number.',
-  });
+  res.status(410).json({ error: 'Phone-only order lookup is discontinued. Use your order number.' });
 });
 
 module.exports = router;

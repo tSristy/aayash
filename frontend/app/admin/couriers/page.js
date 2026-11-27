@@ -121,7 +121,7 @@ export default function CourierSettingsPage() {
         </div>
         <Link
           href="/admin/couriers/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-taupe-900 hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-xl bg-taupe-900 px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
         >
           <span aria-hidden="true">+</span> Add Courier
         </Link>
@@ -184,7 +184,7 @@ export default function CourierSettingsPage() {
                     {!debouncedSearch && status === 'all' && (
                       <Link
                         href="/admin/couriers/new"
-                        className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-taupe-900"
+                        className="mt-4 inline-flex rounded-xl bg-taupe-900 px-4 py-2.5 text-sm font-semibold text-white"
                       >
                         + Add Courier
                       </Link>

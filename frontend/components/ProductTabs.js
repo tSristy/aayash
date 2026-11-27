@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import ReviewForm from './ReviewForm';
+import { useState, useEffect } from 'react';
 
 const hintClass = 'mb-3.5 text-muted';
 
@@ -19,6 +20,15 @@ function Specifications({ rows }) {
 
 export default function ProductTabs({ product }) {
   const [tab, setTab] = useState('Details');
+  const [zones, setZones] = useState([]);
+  useEffect(() => {
+    // Delivery charges come from the database (Admin → Delivery), grouped by zone.
+    fetch('/api/locations').then((r) => r.json()).then((d) => {
+      const byZone = new Map();
+      (d.cities || []).forEach((c) => { const cur = byZone.get(c.zone); byZone.set(c.zone, cur === undefined ? c.charge : Math.min(cur, c.charge)); });
+      setZones([...byZone].map(([name, charge]) => ({ name, charge })));
+    }).catch(() => {});
+  }, []);
   const nutrition = product.nutrition;
   const specifications = (product.specifications || []).map((item) => [
     item.name,
@@ -86,17 +96,11 @@ export default function ProductTabs({ product }) {
         </>
       )}
 
-      {tab === 'Delivery' && (
-        <Specifications rows={[
-          ['Inside Dhaka city', '৳70'],
-          ['Outside Dhaka city', '৳120'],
-          ['Payment', 'Cash on Delivery'],
-          ['Delivery time', 'Confirmed after order placement'],
-        ]} />
-      )}
+      {tab === 'Delivery' && <Specifications rows={[...zones.map((z) => [z.name, z.charge === 0 ? 'Free' : `৳${z.charge}`]), ['Payment', 'Cash on Delivery'], ['Delivery time', 'Confirmed after order placement']]} />}
 
       {tab === 'Reviews' && (
         <div className="grid max-w-[680px] gap-3.5">
+          <ReviewForm slug={product.slug} />
           {(!product.reviews || product.reviews.length === 0) && (
             <p className={hintClass}>No reviews yet.</p>
           )}
@@ -104,7 +108,7 @@ export default function ProductTabs({ product }) {
             <div key={index} className="border-b border-line pb-3.5">
               <p>
                 <strong>{review.author}</strong>{' '}
-                <span className="ml-2 text-primary-deep">
+                <span className="ml-2 text-brown">
                   {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                 </span>
               </p>

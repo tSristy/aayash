@@ -30,7 +30,7 @@ export default function CatalogImage({
 
   return (
     <div
-      className={`${className} flex flex-col items-center justify-center gap-2 bg-[#EAE4DC] px-3 text-center text-stone-500`}
+      className={`${className} flex flex-col items-center justify-center gap-2 bg-tint px-3 text-center text-muted`}
       role="img"
       aria-label={`${alt}: no image available`}
     >
@@ -47,7 +47,7 @@ export default function CatalogImage({
         <circle cx="8.5" cy="9" r="1.5" />
         <path d="m4 17 5-5 3.5 3.5 2.5-2.5 5 5" />
       </svg>
-      <span className="text-[10px] font-medium uppercase tracking-wider">
+      <span className="text-[10px] font-medium">
         {fallbackText}
       </span>
     </div>

@@ -21,7 +21,9 @@ module.exports = (sequelize) => sequelize.define('CommerceOrder', {
   payment_status: { type: DataTypes.STRING(20), allowNull: false },
   status: {
     type: DataTypes.ENUM(
-      'placed', 'confirmed', 'packed', 'out_for_delivery', 'delivered', 'cancelled'
+      'placed', 'pending', 'confirmed', 'wfp', 'packaging', 'packed',
+      'out_for_delivery', 'partial_delivered', 'delivered',
+      'return_pending', 'returned', 'cancelled'
     ),
     allowNull: false,
   },

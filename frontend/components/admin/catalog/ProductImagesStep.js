@@ -124,8 +124,8 @@ export default function ProductImagesStep({
 
         <label
           htmlFor="product-image-files"
-          className={`mt-4 inline-flex cursor-pointer items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-taupe-900 ${
-            uploading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : 'hover:bg-primary-hover'
+          className={`mt-4 inline-flex cursor-pointer items-center justify-center rounded-xl bg-taupe-900 px-5 py-2.5 text-sm font-bold text-white ${
+            uploading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : 'hover:bg-taupe-800'
           }`}
         >
           {uploading ? 'Uploading…' : 'Choose Images'}

@@ -222,7 +222,7 @@ export default function CourierForm({ mode = 'create' }) {
         </div>
         <div className="flex flex-wrap justify-end gap-3 border-t border-taupe-200 pt-4">
           <Link href="/admin/couriers" className="rounded-xl border border-taupe-200 px-5 py-2.5 text-sm font-semibold hover:bg-wash">Cancel</Link>
-          <button type="submit" disabled={saving} className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-taupe-900 disabled:opacity-50">
+          <button type="submit" disabled={saving} className="rounded-xl bg-taupe-900 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">
             {saving ? 'Saving…' : editing ? 'Update Courier' : 'Create Courier'}
           </button>
         </div>

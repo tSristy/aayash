@@ -27,15 +27,17 @@ const PRODUCT_IMAGE_SQL = `COALESCE(NULLIF(p.image_url, ''), (
 const PUBLIC_PRODUCT_SQL = `
   SELECT p.id, p.name, p.slug, p.short_desc, p.emoji,
          ${PRODUCT_IMAGE_SQL} AS image_url,
-         p.sold_count, c.name AS category_name, c.slug AS category_slug,
+         p.sold_count, p.gift_mode, c.name AS category_name, c.slug AS category_slug,
+         b.name AS brand_name, b.slug AS brand_slug,
          v.id AS variant_id, v.label AS variant_label, v.price,
-         v.compare_at_price, v.stock,
+         v.compare_at_price, v.stock, p.is_free_delivery, p.is_combo,
          (SELECT ROUND(AVG(rating), 1) FROM reviews r
-          WHERE r.product_id = p.id) AS rating,
-         (SELECT COUNT(*) FROM reviews r WHERE r.product_id = p.id) AS review_count
+          WHERE r.product_id = p.id AND r.status = 'approved') AS rating,
+         (SELECT COUNT(*) FROM reviews r WHERE r.product_id = p.id AND r.status = 'approved') AS review_count
   FROM products p
   JOIN categories c ON c.id = p.category_id AND c.is_active = 1
   JOIN product_variants v ON v.product_id = p.id AND v.is_default = 1
+  LEFT JOIN brands b ON b.id = p.brand_id AND b.is_active = 1
 `;
 
 function asJson(value) {
@@ -88,7 +90,7 @@ async function categories(_req, res) {
 }
 
 async function products(req, res) {
-  const { category, q, sort = 'popular', deal } = req.query;
+  const { category, q, sort = 'popular', deal, brand, combo } = req.query;
   const rawLimit = Number(req.query.limit || 48);
   const limit = Number.isInteger(rawLimit) && rawLimit >= 1
     ? Math.min(rawLimit, 100)
@@ -117,13 +119,16 @@ async function products(req, res) {
   }
 
   if (deal) conditions.push('v.compare_at_price IS NOT NULL');
+  if (combo) conditions.push('p.is_combo = 1');
+  if (brand) { conditions.push('b.slug = ?'); args.push(String(brand).slice(0, 140)); }
 
   const orderBy = {
-    popular: 'p.sold_count DESC',
+    // Products with an admin-set position come first, in that order; the rest follow by sales.
+    popular: '(p.sort_position = 0), p.sort_position, p.sold_count DESC',
     price_asc: 'v.price ASC',
     price_desc: 'v.price DESC',
     newest: 'p.id DESC',
-  }[sort] || 'p.sold_count DESC';
+  }[sort] || '(p.sort_position = 0), p.sort_position, p.sold_count DESC';
 
   const rows = await query(`
     ${PUBLIC_PRODUCT_SQL}
@@ -132,13 +137,40 @@ async function products(req, res) {
     LIMIT ?
   `, [...args, limit]);
 
+  if (combo && rows.length) {
+    const parts = await query(`
+      SELECT ci.combo_product_id, ci.role, ci.qty, p.name, v.label
+      FROM combo_items ci JOIN product_variants v ON v.id = ci.variant_id JOIN products p ON p.id = v.product_id
+      WHERE ci.combo_product_id IN (${rows.map(() => '?').join(',')}) ORDER BY (ci.role = 'gift'), ci.id`, rows.map((r) => r.id));
+    for (const row of rows) row.items = parts.filter((x) => x.combo_product_id === row.id).map(({ role, qty, name, label }) => ({ role, qty, name, label }));
+  }
   res.json(rows);
+}
+
+async function brands(_req, res) {
+  res.json(await query(`
+    SELECT b.id, b.name, b.slug, b.logo_url, COUNT(p.id) AS product_count
+    FROM brands b
+    JOIN products p ON p.brand_id = b.id AND p.is_active = 1 AND p.status = 'active'
+    WHERE b.is_active = 1
+    GROUP BY b.id ORDER BY b.name`));
+}
+
+// Items inside a combo, split into the main product and its free gifts.
+async function comboItems(comboId) {
+  return query(`
+    SELECT ci.role, ci.qty, v.label, p.name, p.slug,
+           ${PRODUCT_IMAGE_SQL} AS image_url, v.price
+    FROM combo_items ci
+    JOIN product_variants v ON v.id = ci.variant_id
+    JOIN products p ON p.id = v.product_id
+    WHERE ci.combo_product_id = ? ORDER BY (ci.role = 'gift'), ci.id`, [comboId]);
 }
 
 async function productDetails(req, res) {
   const product = await one(`
     SELECT p.*, c.name AS category_name, c.slug AS category_slug,
-           b.name AS brand_name
+           b.name AS brand_name, b.slug AS brand_slug
     FROM products p
     JOIN categories c ON c.id = p.category_id AND c.is_active = 1
     LEFT JOIN brands b ON b.id = p.brand_id
@@ -157,12 +189,12 @@ async function productDetails(req, res) {
       WHERE product_id = ? ORDER BY sort_order, id
     `, [product.id]),
     query(`
-      SELECT author, rating, body, created_at FROM reviews
-      WHERE product_id = ? ORDER BY id DESC LIMIT 20
+      SELECT author, rating, body, admin_reply, created_at FROM reviews
+      WHERE product_id = ? AND status = 'approved' ORDER BY id DESC LIMIT 20
     `, [product.id]),
     one(`
       SELECT ROUND(AVG(rating), 1) AS rating, COUNT(*) AS n
-      FROM reviews WHERE product_id = ?
+      FROM reviews WHERE product_id = ? AND status = 'approved'
     `, [product.id]),
     query(`
       SELECT po.id AS option_id, po.name AS option_name,
@@ -252,8 +284,29 @@ async function productDetails(req, res) {
     `, [product.id]);
   }
 
+  // Combos where this product is the main item (shown as the "free gifts" box), or this combo's own contents.
+  let combos = [];
+  let comboContents = [];
+  if (product.is_combo) {
+    comboContents = await comboItems(product.id);
+  } else {
+    const rows = await query(`
+      SELECT DISTINCT cp.id, cp.name, cp.slug, cp.gift_mode, ${PRODUCT_IMAGE_SQL.replaceAll('p.', 'cp.')} AS image_url,
+             cv.price, cv.compare_at_price, cv.stock
+      FROM combo_items mi
+      JOIN products cp ON cp.id = mi.combo_product_id AND cp.is_combo = 1 AND cp.is_active = 1 AND cp.status = 'active'
+      JOIN product_variants cv ON cv.product_id = cp.id AND cv.is_default = 1
+      WHERE mi.role = 'main' AND mi.variant_id IN (SELECT id FROM product_variants WHERE product_id = ?)`, [product.id]);
+    for (const row of rows) {
+      const gifts = (await comboItems(row.id)).filter((i) => i.role === 'gift');
+      if (gifts.length) combos.push({ ...row, gifts });
+    }
+  }
+
   res.json({
     ...product,
+    combos,
+    combo_items: comboContents,
     image_url: product.image_url || images[0]?.url || null,
     nutrition: asJson(product.nutrition),
     variants: variants.map((variant) => ({
@@ -271,4 +324,4 @@ async function productDetails(req, res) {
   });
 }
 
-module.exports = { categories, products, productDetails };
+module.exports = { categories, products, productDetails, brands };

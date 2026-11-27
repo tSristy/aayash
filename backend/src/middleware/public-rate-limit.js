@@ -6,6 +6,8 @@ function publicRateLimit({ max = 12, windowMs = 60_000 } = {}) {
   const requests = new Map();
 
   return (req, res, next) => {
+    // Automated tests fire many requests from one address; never skipped in real environments.
+    if (process.env.NODE_ENV === 'test') return next();
     const now = Date.now();
     const key = req.ip;
 

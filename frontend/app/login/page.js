@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/admin/Icon';
 import { getSession, login } from '@/lib/auth';
+import useLogo from '@/lib/useLogo';
 
 const input = 'w-full rounded-xl border border-taupe-200 bg-white px-4 py-3 text-taupe-900 placeholder:text-taupe/70 focus:border-primary focus:outline-none';
 
 export default function LoginPage() {
+  const logo = useLogo();
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +19,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     let active = true;
-    getSession().then((s) => { if (active && s) router.replace('/admin'); });
+    getSession().then((s) => { if (active && s) window.location.replace('/admin'); });
     return () => { active = false; };
   }, [router]);
 
@@ -28,8 +30,9 @@ export default function LoginPage() {
     setError('');
     try {
       await login(username, password);
-      router.replace('/admin');
-      router.refresh();
+      // Hard navigation: the client router may hold a cached "redirect to /login" for /admin from before sign-in.
+      window.location.assign('/admin');
+      return;
     } catch (err) { setError(err.message || 'Sign in failed.'); }
     finally { setSubmitting(false); }
   };
@@ -37,7 +40,7 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-screen place-items-center bg-wash px-6 py-10">
       <div className="w-full max-w-[400px]">
-        <img src="/logo.png" alt="Aayash E-Mart" className="mx-auto mb-8 h-14 w-auto" />
+        <img src={logo} alt="Aayash E-Mart" className="mx-auto mb-8 h-14 w-auto" />
         <form onSubmit={submit} className="grid gap-5 rounded-2xl border border-taupe-200 bg-white p-8 shadow-[0_8px_30px_rgba(43,40,35,.06)]">
           <div>
             <h1 className="text-2xl text-taupe-900">Admin sign in</h1>
@@ -64,7 +67,7 @@ export default function LoginPage() {
 
           {error && <p role="alert" className="-mt-2 text-sm text-danger">{error}</p>}
 
-          <button className="rounded-xl bg-primary py-3 font-bold text-taupe-900 transition-colors hover:bg-primary-hover" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
+          <button className="rounded-xl bg-taupe-900 py-3 font-bold text-white transition-colors hover:bg-taupe-800" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
         </form>
         <p className="mt-6 text-center text-sm text-taupe-600"><Link href="/" className="hover:text-taupe-900">← Back to store</Link></p>
       </div>

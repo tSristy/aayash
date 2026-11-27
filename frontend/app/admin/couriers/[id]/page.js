@@ -57,7 +57,7 @@ export default function CourierDetailPage() {
           <p className="mt-1 text-sm text-taupe-600">Provider settings and manual booking availability</p>
         </div>
         {!provider.is_archived && (
-          <Link href={`/admin/couriers/${provider.id}/edit`} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-taupe-900">Edit Courier</Link>
+          <Link href={`/admin/couriers/${provider.id}/edit`} className="rounded-xl bg-taupe-900 px-4 py-2.5 text-sm font-bold text-white">Edit Courier</Link>
         )}
       </div>
       <section className="grid max-w-3xl gap-2 rounded-2xl border border-taupe-200 bg-white p-5">

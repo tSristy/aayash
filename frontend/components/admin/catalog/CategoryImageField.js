@@ -5,7 +5,7 @@ import { inputClass, secondaryButton } from './catalogApi';
 import { uploadProductImage } from './productImageUpload';
 
 /** Category cover uses the same authenticated media uploader as products. */
-export default function CategoryImageField({ value, onChange, disabled }) {
+export default function CategoryImageField({ value, onChange, disabled, label = 'Category Cover Photo', help, id = 'category-cover-file', fit = 'object-cover' }) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -30,16 +30,15 @@ export default function CategoryImageField({ value, onChange, disabled }) {
   return (
     <div className="grid gap-3">
       <div>
-        <p className="text-sm font-medium text-taupe-700">Category Cover Photo</p>
+        <p className="text-sm font-medium text-taupe-700">{label}</p>
         <p className="mt-1 text-xs text-taupe-600">
-          Upload a real JPG, PNG or WebP image (max 5 MB). The shop will
-          automatically use a product photo when this is empty.
+          {help || 'Upload a real JPG, PNG or WebP image (max 5 MB). The shop will automatically use a product photo when this is empty.'}
         </p>
       </div>
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex h-32 w-40 items-center justify-center overflow-hidden rounded-lg border border-taupe-200 bg-taupe-50">
           {value ? (
-            <img src={value} alt="Category cover preview" className="h-full w-full object-cover" />
+            <img src={value} alt="Category cover preview" className={`h-full w-full ${fit}`} />
           ) : (
             <span className="px-3 text-center text-xs text-taupe-600">No cover uploaded</span>
           )}
@@ -47,7 +46,7 @@ export default function CategoryImageField({ value, onChange, disabled }) {
         <div className="grid gap-2">
           <input
             ref={inputRef}
-            id="category-cover-file"
+            id={id}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             disabled={disabled || uploading}
@@ -55,7 +54,7 @@ export default function CategoryImageField({ value, onChange, disabled }) {
             className="sr-only"
           />
           <label
-            htmlFor="category-cover-file"
+            htmlFor={id}
             className={`${secondaryButton} cursor-pointer ${disabled || uploading ? 'pointer-events-none opacity-50' : ''}`}
           >
             {uploading ? 'Uploading photo…' : 'Upload Photo'}
@@ -67,7 +66,7 @@ export default function CategoryImageField({ value, onChange, disabled }) {
               onClick={() => onChange('')}
               className="text-left text-xs text-red-700 hover:underline"
             >
-              Remove cover
+              Remove image
             </button>
           )}
         </div>

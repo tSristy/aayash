@@ -6,11 +6,18 @@ class ValidationError extends Error {
 const clean = (value) => typeof value === 'string' ? value.trim() : '';
 const slugFromName = (s) => clean(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
+function imageValue(raw) {
+  const value = clean(raw);
+  if (value && (value.length > 500 || !(value.startsWith('/') && !value.startsWith('//') && !value.includes(String.fromCharCode(92)) || /^https:\/\//i.test(value)))) {
+    throw new ValidationError('Image URL must be an HTTPS URL or a local /path.');
+  }
+  return value || null;
+}
 function parsePayload(body, entity, mode = 'create') {
   if (!isObject(body)) throw new ValidationError('Invalid request body.');
   const allowed = entity === 'category'
     ? ['name', 'slug', 'parent_id', 'emoji', 'image_url', 'sort_order', 'is_active']
-    : ['name', 'slug', 'is_active'];
+    : ['name', 'slug', 'logo_url', 'is_active'];
   const extra = Object.keys(body).filter(k => !allowed.includes(k));
   if (extra.length) throw new ValidationError('Unknown or protected fields: ' + extra.join(', '));
   if (!Object.keys(body).length) throw new ValidationError('No fields supplied.');
@@ -44,13 +51,9 @@ function parsePayload(body, entity, mode = 'create') {
       if ([...val].length > 8 || val.length > 16) throw new ValidationError('Emoji must be short.');
       out.emoji = val || null;
     }
-    if (Object.hasOwn(body, 'image_url')) {
-      const value = clean(body.image_url);
-      if (value && (value.length > 500 || !(value.startsWith('/') && !value.startsWith('//') && !value.includes(String.fromCharCode(92)) || /^https:\/\//i.test(value)))) {
-        throw new ValidationError('Image URL must be an HTTPS URL or a local /path.');
-      }
-      out.image_url = value || null;
-    }
+    if (Object.hasOwn(body, 'image_url')) out.image_url = imageValue(body.image_url);
+  } else if (Object.hasOwn(body, 'logo_url')) {
+    out.logo_url = imageValue(body.logo_url);
   }
   return out;
 }

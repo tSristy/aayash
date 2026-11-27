@@ -27,7 +27,7 @@ export default function Gallery({ product }) {
             onClick={() => setSelected(index)}
             aria-label={`Show product photo ${index + 1}`}
             className={`aspect-square w-full overflow-hidden border bg-white transition-colors ${
-              index === selected ? 'border-[#A65A3E]' : 'border-[#E2D9CE] hover:border-[#2E261F]'
+              index === selected ? 'border-primary' : 'border-line hover:border-ink'
             }`}
           >
             <CatalogImage

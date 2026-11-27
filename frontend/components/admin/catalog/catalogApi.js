@@ -9,7 +9,7 @@ export async function catalogRequest(path, init = {}) {
 }
 export const inputClass = 'w-full rounded-xl border border-taupe-200 bg-white px-3 py-2.5 text-sm text-taupe-900 focus:border-primary focus:outline-none';
 export const labelClass = 'grid gap-1.5 text-sm font-medium text-taupe-700';
-export const mainButton = 'inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-taupe-900 hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60';
+export const mainButton = 'inline-flex items-center justify-center gap-2 rounded-xl bg-taupe-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-taupe-800 disabled:cursor-not-allowed disabled:opacity-60';
 export const secondaryButton = 'inline-flex items-center justify-center rounded-xl border border-taupe-200 bg-white px-4 py-2.5 text-sm font-medium text-taupe-700 hover:bg-taupe-50';
 export const cardClass = 'rounded-card border border-taupe-200 bg-white p-5 sm:p-6';
 export const slugify = s => String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { DELIVERY_CITIES } from '@/lib/shipping';
 import { inputCls } from '@/components/ui/Field';
 
 /** Keyboard-accessible city combobox: type to filter, scroll to see 10 options. */
-export default function CityCombobox({ value, onChange, disabled = false }) {
+export default function CityCombobox({ cities = [], value, onChange, disabled = false }) {
   const id = useId();
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -13,7 +12,7 @@ export default function CityCombobox({ value, onChange, disabled = false }) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const filtered = DELIVERY_CITIES.filter((city) => (
+  const filtered = cities.filter((city) => (
     city.toLowerCase().includes(query.trim().toLowerCase())
   ));
 
@@ -81,7 +80,7 @@ export default function CityCombobox({ value, onChange, disabled = false }) {
   return (
     <div className="relative grid gap-1.5" ref={containerRef}>
       <label htmlFor={`${id}-input`} className="text-sm font-bold">
-        City / District <span className="text-[#A65A3E]">*</span>
+        City / District <span className="text-brown">*</span>
       </label>
       <div className="relative">
         <input
@@ -106,7 +105,7 @@ export default function CityCombobox({ value, onChange, disabled = false }) {
             setOpen(true);
           }}
           onKeyDown={onKeyDown}
-          className={`${inputCls} !rounded-none !border-[#E2D9CE] !bg-white pr-10 focus:!border-[#A65A3E]`}
+          className={`${inputCls}  !border-line !bg-white pr-10 focus:!border-brown`}
         />
         <button
           type="button"
@@ -123,7 +122,7 @@ export default function CityCombobox({ value, onChange, disabled = false }) {
               inputRef.current?.focus();
             }
           }}
-          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-stone-500 hover:text-[#A65A3E]"
+          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted hover:text-brown"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="m6 9 6 6 6-6" />
@@ -136,7 +135,7 @@ export default function CityCombobox({ value, onChange, disabled = false }) {
           id={`${id}-list`}
           role="listbox"
           aria-label="Cities and districts"
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[360px] overflow-y-auto overscroll-contain border border-[#E2D9CE] bg-white py-1 shadow-xl"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[360px] overflow-y-auto overscroll-contain border border-line bg-white py-1 shadow-xl"
         >
           {filtered.length ? filtered.map((city, index) => (
             <button
@@ -149,14 +148,14 @@ export default function CityCombobox({ value, onChange, disabled = false }) {
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => select(city)}
               className={`flex min-h-9 w-full items-center justify-between px-4 py-2 text-left text-sm transition-colors ${
-                index === activeIndex ? 'bg-[#F5F1EB] text-[#A65A3E]' : 'text-[#2E261F] hover:bg-[#F5F1EB]'
+                index === activeIndex ? 'bg-tint text-brown' : 'text-ink hover:bg-tint'
               }`}
             >
               <span>{city === 'Dhaka' ? 'Dhaka (city only)' : city}</span>
               {city === value && <span aria-hidden="true">✓</span>}
             </button>
           )) : (
-            <p className="px-4 py-3 text-sm text-stone-500">No matching city. Try another spelling.</p>
+            <p className="px-4 py-3 text-sm text-muted">No matching city. Try another spelling.</p>
           )}
         </div>
       )}

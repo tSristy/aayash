@@ -4,9 +4,27 @@
 
 /* Only global element defaults live here. Everything else is Tailwind classes + the theme in tailwind.config.js */
 @layer base {
+  :root { --c-primary: 37 99 235; --c-primary-hover: 29 78 216; --c-primary-deep: 29 78 216; --c-primary-soft: 147 197 253; --c-footer: 15 23 42; --c-accent: 37 99 235; }
   html { scroll-behavior: smooth; overflow-y: scroll; }
   body { @apply bg-canvas font-sans text-ink antialiased; }
   h1, h2, h3, h4 { @apply font-display font-bold leading-tight tracking-tight; }
   :focus-visible { @apply outline outline-[3px] outline-offset-2 outline-primary; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 }
+
+/* Receipt / label printing: only the element marked #print-area is shown on paper. */
+@media print {
+  body * { visibility: hidden !important; }
+  #print-area, #print-area * { visibility: visible !important; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+}
+
+/* Rich-text editor and published CMS content share these defaults. */
+.rte h1, .cms h1 { font-size: 2rem; font-weight: 700; margin: 1.2em 0 .4em; }
+.rte h2, .cms h2 { font-size: 1.5rem; margin: 1.2em 0 .4em; }
+.rte h3, .cms h3 { font-size: 1.2rem; margin: 1em 0 .3em; }
+.rte p, .cms p { margin: 0 0 .8em; }
+.rte ul, .cms ul { list-style: disc; margin: 0 0 .8em 1.4em; }
+.rte ol, .cms ol { list-style: decimal; margin: 0 0 .8em 1.4em; }
+.rte blockquote, .cms blockquote { border-left: 3px solid #CBD5E1; padding-left: 1em; margin: 0 0 .8em; color: #475569; }
+.rte a, .cms a { color: #2563EB; text-decoration: underline; }

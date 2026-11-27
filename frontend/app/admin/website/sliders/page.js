@@ -1,0 +1,7 @@
+'use client';
+import ResourceManager, { ActiveBadge } from '@/components/admin/ui/ResourceManager';
+export default function Sliders() {
+  return <ResourceManager title="Home sliders" subtitle="Big pictures at the very top of the shop home page. Lowest order shows first. For smaller promo pictures lower down the page, use Banners." endpoint="/ops/cms/sliders" noun="slider" writePerm="website.manage" searchable={false} createLabel="Add slider"
+    columns={[{ label: 'Image', render: (s) => <img src={s.image_url} alt="" className="h-12 w-24 rounded-lg object-cover" /> }, { label: 'Title', render: (s) => <><b>{s.title}</b><p className="text-xs text-taupe-600">{s.subtitle}</p></> }, { label: 'Link', key: 'link_url' }, { label: 'Order', align: 'right', key: 'sort_order' }, { label: 'Status', render: (s) => <ActiveBadge on={s.is_active} /> }]}
+    fields={[{ name: 'image_url', label: 'Image', type: 'image', required: true, span: 2, help: 'Wide picture, about 1600×600.' }, { name: 'title', label: 'Title' }, { name: 'subtitle', label: 'Subtitle' }, { name: 'link_url', label: 'Link (e.g. /products)' }, { name: 'button_text', label: 'Button text' }, { name: 'sort_order', label: 'Order', type: 'number' }, { name: 'is_active', label: 'Show on website', type: 'toggle' }, { name: 'starts_at', label: 'Show from', type: 'date' }, { name: 'ends_at', label: 'Show until', type: 'date' }]} defaults={{ sort_order: 0, is_active: true }} />;
+}

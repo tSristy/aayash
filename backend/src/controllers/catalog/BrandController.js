@@ -18,7 +18,7 @@ const list = route(async (req, res) => {
     };
 
     const result = await Brand.findAndCountAll({
-        attributes: ['id', 'name', 'slug', 'is_active'],
+        attributes: ['id', 'name', 'slug', 'logo_url', 'is_active'],
         where,
         limit: paging.limit,
         offset: paging.offset,

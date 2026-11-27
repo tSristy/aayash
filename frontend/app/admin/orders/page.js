@@ -1,382 +1,152 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import Icon from '@/components/admin/Icon';
-import CopyIconButton from '@/components/ui/CopyIconButton';
-import {
-  CatalogLoadingRows,
-  CatalogPagination,
-} from '@/components/admin/catalog/CatalogListControls';
-import { money } from '@/lib/format';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { api, post, useDebounced, useFetch } from '@/lib/admin-api';
+import { taka, fmtDateTime } from '@/lib/format';
+import { Alert, Badge, Btn, Card, IconBtn, Menu, MenuItem, PageHeader, Pagination, SearchBox, StatusBadge, Tabs, Select, useToast, I } from '@/components/admin/ui/kit';
+import { STATUS_ORDER, useOrderMeta, statusLabel } from '@/components/admin/orders/common';
+import { useAdmin } from '@/components/admin/AdminContext';
+import { todayStr } from '@/lib/format';
 
-const STATUS_OPTIONS = [
-  { value: 'placed', label: 'Placed', badge: 'bg-amber-100 text-amber-800' },
-  { value: 'confirmed', label: 'Confirmed', badge: 'bg-blue-100 text-blue-800' },
-  { value: 'packed', label: 'Packed', badge: 'bg-indigo-100 text-indigo-800' },
-  { value: 'out_for_delivery', label: 'Out for Delivery', badge: 'bg-purple-100 text-purple-800' },
-  { value: 'delivered', label: 'Delivered', badge: 'bg-emerald-100 text-emerald-800' },
-  { value: 'cancelled', label: 'Cancelled', badge: 'bg-red-100 text-red-800' },
-];
+const TAB_STATUSES = ['placed', 'pending', 'confirmed', 'wfp', 'packaging', 'packed', 'out_for_delivery', 'partial_delivered', 'delivered', 'return_pending', 'returned', 'cancelled'];
 
-const ALLOWED_NEXT_STATUS = {
-  placed: ['confirmed', 'cancelled'],
-  confirmed: ['packed', 'cancelled'],
-  packed: ['out_for_delivery', 'cancelled'],
-  out_for_delivery: ['delivered'],
-  delivered: [],
-  cancelled: [],
-};
+function csvCell(v) { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
 
-const inputClass = 'rounded-xl border border-taupe-200 bg-wash px-3 py-2.5 text-sm text-taupe-900 focus:border-primary focus:bg-white focus:outline-none';
-
-export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState([]);
+function OrdersInner() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const { can } = useAdmin();
+  const toast = useToast();
+  const meta = useOrderMeta();
+  const [status, setStatus] = useState(sp.get('status') || 'all');
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [status, setStatus] = useState('all');
-  const [payment, setPayment] = useState('all');
-  const [courier, setCourier] = useState('all');
-  const [courierOptions, setCourierOptions] = useState([]);
+  const [source, setSource] = useState('');
+  const [assigned, setAssigned] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [statusCounts, setStatusCounts] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [updatingId, setUpdatingId] = useState(null);
-  const [refreshIndex, setRefreshIndex] = useState(0);
+  const [limit, setLimit] = useState(20);
+  const [selected, setSelected] = useState(new Set());
+  const q = useDebounced(search);
+  const query = { status, search: q || undefined, source: source || undefined, assigned: assigned || undefined, from: from || undefined, to: to || undefined, page, limit };
+  const { data, loading, error, reload } = useFetch('/orders', query);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [status, q, source, assigned, from, to, limit]);
+  useEffect(() => setSelected(new Set()), [page]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    async function loadCouriers() {
-      try {
-        const response = await fetch('/api/admin/couriers/providers/options?scope=all', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (!controller.signal.aborted) setCourierOptions(data.items || []);
-      } catch (error) {
-        // Orders are still searchable when courier settings are temporarily unavailable.
-      }
-    }
-    loadCouriers();
-    return () => controller.abort();
-  }, []);
+  const canManage = can('orders.manage');
+  const counts = data?.statusCounts || {};
+  const tabs = [{ value: 'all', label: 'All', count: data?.allCount }, ...TAB_STATUSES.map((s) => ({ value: s, label: statusLabel(meta, s), count: counts[s] || 0 }))];
+  const items = data?.items || [];
+  const allSelected = items.length > 0 && items.every((o) => selected.has(o.id));
+  const toggle = (id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
-  useEffect(() => {
-    const initial = new URLSearchParams(window.location.search).get('search');
-    if (initial) {
-      setSearch(initial);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, status, payment, courier, from, to]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadOrders() {
-      setLoading(true);
-      setError('');
-
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-      });
-
-      if (debouncedSearch) params.set('search', debouncedSearch);
-      if (status !== 'all') params.set('status', status);
-      if (payment !== 'all') params.set('payment', payment);
-      if (courier !== 'all') params.set('courier', courier);
-      if (from) params.set('from', from);
-      if (to) params.set('to', to);
-
-      try {
-        const response = await fetch(`/api/admin/orders?${params}`, {
-          credentials: 'same-origin',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        const payload = await response.json();
-
-        if (!response.ok) {
-          throw new Error(payload.error || 'Could not load orders.');
-        }
-
-        if (controller.signal.aborted) return;
-
-        setOrders(payload.items || []);
-        setTotal(payload.total || 0);
-        setTotalPages(payload.totalPages || 1);
-        setStatusCounts(payload.statusCounts || {});
-      } catch (reason) {
-        if (reason.name !== 'AbortError') {
-          setError(reason.message || 'Order lookup failed.');
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadOrders();
-    return () => controller.abort();
-  }, [page, limit, debouncedSearch, status, payment, courier, from, to, refreshIndex]);
-
-  function chooseStatus(value) {
-    setStatus(value);
-    setPage(1);
-  }
-
-  async function updateStatus(orderId, nextStatus) {
-    if (nextStatus === 'cancelled' && !window.confirm('Cancel this order and release reserved stock?')) {
-      return;
-    }
-
-    setUpdatingId(orderId);
-    setError('');
-
+  async function bulk(body, okMsg) {
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || 'Could not update order.');
-      }
-
-      setMessage('Order status updated.');
-      setRefreshIndex((value) => value + 1);
-    } catch (reason) {
-      setError(reason.message || 'Order update failed.');
-    } finally {
-      setUpdatingId(null);
-    }
+      const r = await post('/orders/bulk', { ids: [...selected], ...body });
+      toast(r.failCount ? `${r.okCount} updated, ${r.failCount} skipped (${r.failures?.[0]?.error || 'not allowed'})` : okMsg || `${r.okCount} orders updated`, r.failCount ? 'error' : 'success');
+      setSelected(new Set()); reload();
+    } catch (e) { toast(e.message, 'error'); }
   }
 
-  const list = {
-    page,
-    limit,
-    total,
-    totalPages,
-    loading,
-    setPage,
-    changeLimit(value) {
-      setLimit(Number(value));
-      setPage(1);
-    },
+  const exportCsv = () => {
+    const rows = items.filter((o) => !selected.size || selected.has(o.id));
+    const head = ['Order', 'Date', 'Status', 'Customer', 'Phone', 'City', 'Address', 'Items', 'Total', 'Due', 'Source', 'Courier', 'Consignment'];
+    const lines = [head, ...rows.map((o) => [o.order_no, o.created_at, o.status_label, o.guest_name, o.guest_phone, o.city, o.address_line, o.items.map((i) => `${i.name} x${i.qty}`).join('; '), o.total, o.due, o.source, o.courier_name, o.consignment_id])];
+    const blob = new Blob([`﻿${lines.map((r) => r.map(csvCell).join(',')).join('\n')}`], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `orders-${todayStr()}.csv`; a.click(); URL.revokeObjectURL(a.href);
   };
 
-  const totalForChips = Object.values(statusCounts).reduce((sum, n) => sum + Number(n), 0);
-
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-taupe-900">Orders &amp; Tracking</h1>
-          <p className="mt-1 text-sm text-taupe-600">
-            Search and filter orders from the database, manage status and contact customers.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setRefreshIndex((value) => value + 1)}
-          className="rounded-xl border border-taupe-200 bg-white px-4 py-2.5 text-sm font-bold hover:bg-wash"
-        >
-          Refresh
-        </button>
+    <>
+      <PageHeader title="Orders" subtitle="Review, approve, pack and ship."
+        actions={<>
+          <Btn variant="outline" icon="download" onClick={exportCsv}>{selected.size ? `Export ${selected.size}` : 'Export page'}</Btn>
+          {can('orders.create', 'orders.manage') && <Link href="/admin/orders/new"><Btn icon="plus">Create order</Btn></Link>}
+        </>} />
+      <Tabs tabs={tabs} value={status} onChange={setStatus} className="mb-3" />
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <SearchBox value={search} onChange={setSearch} placeholder="Order no, name or phone" className="w-full sm:w-72" />
+        <select aria-label="Source" value={source} onChange={(e) => setSource(e.target.value)} className="rounded-full bg-white px-4 py-2 text-sm shadow-card"><option value="">All sources</option>{meta.sources.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}</select>
+        <select aria-label="Assigned to" value={assigned} onChange={(e) => setAssigned(e.target.value)} className="rounded-full bg-white px-4 py-2 text-sm shadow-card"><option value="">Anyone</option>{meta.admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        <label className="flex items-center gap-2 text-sm text-taupe-600">From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-full bg-white px-3 py-1.5 text-sm text-taupe-900 shadow-card" /></label>
+        <label className="flex items-center gap-2 text-sm text-taupe-600">To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-full bg-white px-3 py-1.5 text-sm text-taupe-900 shadow-card" /></label>
+        {data?.incompleteCount > 0 && <Link href="/admin/orders/incomplete" className="ml-auto"><Badge tone="orange">{data.incompleteCount} incomplete checkouts →</Badge></Link>}
       </div>
 
-      <section className="grid gap-4 rounded-2xl border border-taupe-200 bg-white p-4">
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search order number, customer name or phone…"
-          aria-label="Search orders"
-          className={`w-full ${inputClass}`}
-        />
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => chooseStatus('all')}
-            className={`rounded-xl px-3 py-2 text-xs font-bold ${status === 'all' ? 'bg-primary text-taupe-900' : 'bg-wash text-taupe-600'}`}
-          >
-            All ({totalForChips})
-          </button>
-          {STATUS_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => chooseStatus(option.value)}
-              className={`rounded-xl px-3 py-2 text-xs font-bold ${status === option.value ? 'bg-primary text-taupe-900' : 'bg-wash text-taupe-600'}`}
-            >
-              {option.label} ({statusCounts[option.value] || 0})
-            </button>
-          ))}
+      {selected.size > 0 && canManage && (
+        <div className="sticky top-[64px] z-20 mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-taupe-900 px-4 py-3 text-sm text-white shadow-pop">
+          <b>{selected.size} selected</b>
+          <Menu align="left" trigger={() => <Btn size="sm" variant="soft" icon="refresh">Change status</Btn>}>
+            {TAB_STATUSES.filter((s) => s !== 'partial_delivered').map((s) => <MenuItem key={s} onClick={() => bulk({ action: 'status', status: s })}>{statusLabel(meta, s)}</MenuItem>)}
+          </Menu>
+          <Menu align="left" trigger={() => <Btn size="sm" variant="soft" icon="user">Assign</Btn>}>
+            <MenuItem onClick={() => bulk({ action: 'assign', adminId: null })}>Unassign</MenuItem>
+            {meta.admins.map((a) => <MenuItem key={a.id} onClick={() => bulk({ action: 'assign', adminId: a.id })}>{a.name}</MenuItem>)}
+          </Menu>
+          <Menu align="left" trigger={() => <Btn size="sm" variant="soft" icon="tag">Set source</Btn>}>
+            {meta.sources.map((s) => <MenuItem key={s.code} onClick={() => bulk({ action: 'source', source: s.code })}>{s.name}</MenuItem>)}
+          </Menu>
+          <Btn size="sm" variant="soft" icon="print" onClick={() => router.push(`/admin/orders/print?ids=${[...selected].join(',')}`)}>Print invoices</Btn>
+          <button className="ml-auto text-white/70 hover:text-white" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="grid gap-1 text-xs text-taupe-600">
-            Payment Status
-            <select className={inputClass} value={payment} onChange={(e) => setPayment(e.target.value)}>
-              <option value="all">All payments</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs text-taupe-600">
-            Courier
-            <select className={inputClass} value={courier} onChange={(e) => setCourier(e.target.value)}>
-              <option value="all">All couriers</option>
-              <option value="unassigned">Not actively assigned</option>
-              {courierOptions.map((item) => (
-                <option key={item.id} value={item.code}>{item.name}{item.is_archived ? ' (archived)' : ''}</option>
-              ))}
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="grid gap-1 text-xs text-taupe-600">
-              From
-              <input type="date" className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} />
-            </label>
-            <label className="grid gap-1 text-xs text-taupe-600">
-              To
-              <input type="date" className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} />
-            </label>
-          </div>
-        </div>
-      </section>
-
-      {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>
       )}
-      {message && <p role="status" className="text-sm text-taupe-700">{message}</p>}
 
-      <div className="overflow-hidden rounded-2xl border border-taupe-200 bg-white">
+      {error && <Alert>{error}</Alert>}
+      <Card pad={false}>
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-taupe-200 bg-wash text-xs font-bold uppercase tracking-wider text-taupe-600">
-                <th className="px-5 py-3.5">Order</th>
-                <th className="px-5 py-3.5">Customer &amp; Phone</th>
-                <th className="px-5 py-3.5">Total</th>
-                <th className="px-5 py-3.5">Courier</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">View</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-taupe-200">
-              {loading ? (
-                <CatalogLoadingRows colSpan={6} />
-              ) : orders.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-taupe-600">No matching orders found.</td>
+          <table className="w-full min-w-[980px] text-left text-sm">
+            <thead><tr className="border-b border-taupe-100 text-xs uppercase tracking-wide text-taupe-600">
+              <th className="w-10 px-3 py-3"><input type="checkbox" aria-label="Select all" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(items.map((o) => o.id)))} /></th>
+              <th className="px-3 py-3 font-medium">Order</th><th className="px-3 py-3 font-medium">Customer</th><th className="px-3 py-3 font-medium">Items</th>
+              <th className="px-3 py-3 text-right font-medium">Amount</th><th className="px-3 py-3 font-medium">Status</th><th className="px-3 py-3 font-medium">Courier</th><th className="w-24 px-3 py-3" />
+            </tr></thead>
+            <tbody>
+              {loading && !items.length && Array.from({ length: 6 }).map((_, i) => <tr key={i}><td colSpan={8} className="px-3 py-4"><div className="h-5 animate-pulse rounded bg-taupe-100" /></td></tr>)}
+              {!loading && !items.length && <tr><td colSpan={8} className="px-3 py-16 text-center text-taupe-600">No orders match these filters.</td></tr>}
+              {items.map((o) => (
+                <tr key={o.id} className={`border-b border-taupe-50 align-top hover:bg-taupe-50/60 ${selected.has(o.id) ? 'bg-primary/10' : ''} ${loading ? 'opacity-60' : ''}`}>
+                  <td className="px-3 py-3"><input type="checkbox" aria-label={`Select ${o.order_no}`} checked={selected.has(o.id)} onChange={() => toggle(o.id)} /></td>
+                  <td className="px-3 py-3">
+                    <Link href={`/admin/orders/${o.id}`} className="font-bold text-taupe-900 hover:underline">{o.order_no}</Link>
+                    <p className="text-xs text-taupe-600">{fmtDateTime(o.created_at)}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge>{o.source || 'website'}</Badge>
+                      {o.order_type !== 'online' && <Badge tone="blue">{o.order_type}</Badge>}
+                      {o.note_count > 0 && <Badge tone="amber">{o.note_count} note{o.note_count > 1 ? 's' : ''}</Badge>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="font-medium">{o.guest_name}</p>
+                    <p className="text-xs text-taupe-600">{o.guest_phone}</p>
+                    <p className="max-w-[200px] truncate text-xs text-taupe-600" title={`${o.address_line}, ${o.city}`}>{o.city}</p>
+                    {o.previous_orders > 0 && <Badge tone="purple" className="mt-1">{o.previous_orders} previous</Badge>}
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex -space-x-2">{o.items.slice(0, 4).map((i, n) => <span key={n} title={`${i.name} × ${i.qty}`} className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border-2 border-white bg-taupe-100 text-[10px]">{i.image_url ? <img src={i.image_url} alt="" className="h-full w-full object-cover" /> : i.qty}</span>)}{o.items.length > 4 && <span className="grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-taupe-200 text-xs">+{o.items.length - 4}</span>}</div>
+                    <p className="mt-1 max-w-[220px] truncate text-xs text-taupe-600">{o.items.map((i) => `${i.name} ×${i.qty}`).join(', ')}</p>
+                  </td>
+                  <td className="px-3 py-3 text-right"><p className="font-bold">{taka(o.total)}</p>{o.due > 0 && o.status !== 'cancelled' ? <p className="text-xs text-amber-700">Due {taka(o.due)}</p> : <p className="text-xs text-emerald-700">Paid</p>}</td>
+                  <td className="px-3 py-3"><StatusBadge status={o.status} label={o.status_label} />{o.approved_by && <p className="mt-1 text-xs text-taupe-600">by {o.approved_by}</p>}</td>
+                  <td className="px-3 py-3 text-xs text-taupe-700">{o.courier_name ? <><p className="font-medium">{o.courier_name}</p><p className="text-taupe-600">{o.consignment_id}</p></> : <span className="text-taupe-300">—</span>}</td>
+                  <td className="px-3 py-3"><div className="flex justify-end gap-1">
+                    {canManage && o.status === 'placed' && <IconBtn icon="check" label="Approve" variant="soft" onClick={async () => { try { await api(`/orders/${o.id}/status`, { method: 'PATCH', body: { status: 'confirmed' } }); toast(`${o.order_no} approved`); reload(); } catch (e) { toast(e.message, 'error'); } }} />}
+                    <IconBtn icon="print" label="Print invoice" onClick={() => router.push(`/admin/orders/print?ids=${o.id}`)} />
+                    <IconBtn icon="eye" label="Open" onClick={() => router.push(`/admin/orders/${o.id}`)} />
+                  </div></td>
                 </tr>
-              ) : orders.map((order) => {
-                const option = STATUS_OPTIONS.find((item) => item.value === order.status);
-                const needsCourierBooking = order.status === 'packed' && !Boolean(order.has_active_shipment);
-                return (
-                  <tr key={order.id} className="hover:bg-wash/50">
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-taupe-900">{order.order_no}</p>
-                      <p className="mt-1 text-xs text-taupe-600">{new Date(order.created_at).toLocaleDateString()}</p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-taupe-900">{order.guest_name}</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <a
-                          href={`tel:${String(order.guest_phone || '').replace(/[^0-9+]/g, '')}`}
-                          className="text-primary-deep underline underline-offset-2"
-                        >
-                          {order.guest_phone}
-                        </a>
-                        <CopyIconButton
-                          value={order.guest_phone}
-                          label={`Copy ${order.guest_phone}`}
-                          className="!h-8 !w-8 text-taupe-700"
-                        />
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-bold">{money(order.total)}</td>
-                    <td className="px-5 py-4 text-xs">
-                      <p>{order.courier_name || 'Not assigned'}</p>
-                      {needsCourierBooking && (
-                        <Link
-                          href={`/admin/orders/${order.id}#courier-shipment`}
-                          className="mt-2 inline-flex items-center rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary-deep hover:bg-primary/20"
-                        >
-                          Book Courier
-                        </Link>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-block rounded-lg px-2.5 py-1 text-xs font-bold ${option?.badge || 'bg-wash'}`}>
-                        {option?.label || order.status}
-                      </span>
-                      <select
-                        aria-label={`Update status for ${order.order_no}`}
-                        className="mt-2 block rounded-lg border border-taupe-200 bg-white p-1.5 text-xs"
-                        value={order.status}
-                        disabled={updatingId === order.id}
-                        onChange={(event) => updateStatus(order.id, event.target.value)}
-                      >
-                        {STATUS_OPTIONS.filter((item) => (
-                          item.value === order.status || (
-                            ALLOWED_NEXT_STATUS[order.status]?.includes(item.value) &&
-                            !(item.value === 'out_for_delivery' && needsCourierBooking)
-                          )
-                        )).map((item) => (
-                          <option key={item.value} value={item.value}>{item.label}</option>
-                        ))}
-                      </select>
-                      {needsCourierBooking && (
-                        <p className="mt-1 max-w-44 text-xs leading-relaxed text-amber-800">
-                          Record a shipment before dispatch.
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        aria-label={`View order ${order.order_no}`}
-                        title="View order details"
-                        className="inline-flex items-center justify-center rounded-lg border border-taupe-200 p-2 hover:bg-wash"
-                      >
-                        <Icon name="eye" size={18} />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         </div>
-        <CatalogPagination list={list} />
-      </div>
-    </div>
+        <div className="flex flex-wrap items-center gap-3 px-3 pb-3">
+          <div className="min-w-[260px] flex-1">{data && <Pagination page={data.page} totalPages={data.totalPages} total={data.total} onPage={setPage} label="orders" />}</div>
+          <select aria-label="Rows per page" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="rounded-full bg-taupe-100 px-3 py-1.5 text-sm">{[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n} / page</option>)}</select>
+        </div>
+      </Card>
+    </>
   );
 }
+
+export default function OrdersPage() { return <Suspense><OrdersInner /></Suspense>; }

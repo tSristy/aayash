@@ -3,12 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCart } from './CartContext';
+import { track } from './Pixel';
 import Button from './ui/Button';
 import Badge from './ui/Badge';
 import Stepper from './ui/Stepper';
 import { money } from '@/lib/format';
 
-const labelClass = 'mb-2 text-xs font-semibold uppercase tracking-widest text-stone-500';
+const labelClass = 'mb-2 text-xs font-semibold uppercase tracking-wide text-muted';
 const storePhone = process.env.NEXT_PUBLIC_STORE_PHONE || '';
 const whatsAppNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '';
 
@@ -40,7 +41,6 @@ export default function ProductBuy({ product }) {
   ));
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
-  const [liked, setLiked] = useState(false);
   const [shared, setShared] = useState(false);
 
   const options = (product.options || []).filter((option) => option.values.length);
@@ -78,7 +78,9 @@ export default function ProductBuy({ product }) {
       price: unitPrice,
       emoji: product.emoji,
       image: product.image_url,
+      gifts: (product.combos || []).filter((c) => c.gift_mode === 'with_main').flatMap((c) => c.gifts.map((g) => ({ name: g.name, qty: g.qty }))),
     }, qty);
+    track('AddToCart', { content_ids: [String(variant.id)], content_name: product.name, content_type: 'product', value: unitPrice * qty, currency: 'BDT' });
   }
 
   function onAdd() {
@@ -112,24 +114,24 @@ export default function ProductBuy({ product }) {
 
   return (
     <div>
-      <p className="flex flex-wrap items-baseline gap-2 font-serif text-[34px] font-normal text-[#2E261F]">
+      <p className="flex flex-wrap items-baseline gap-2 text-3xl font-bold text-ink">
         {variant ? money(unitPrice) : 'Select a configuration'}
         {variant && (
-          <small className="font-sans text-sm font-normal text-stone-500">
+          <small className="text-sm font-normal text-muted">
             / {variant.label}
           </small>
         )}
         {variant?.compare_at_price && (
-          <s className="font-sans text-base font-normal text-stone-400">
+          <s className="text-base font-normal text-muted">
             {money(variant.compare_at_price)}
           </s>
         )}
         {discountPercent > 0 && <Badge>{discountPercent}% off</Badge>}
       </p>
-      <p className="mb-[18px] text-xs text-stone-500">
-        Delivery: ৳70 inside Dhaka city / ৳120 outside Dhaka city.
+      <p className="mb-4 text-xs text-muted">
+        Delivery charge is shown at checkout.
       </p>
-      <p className="mb-6 max-w-[56ch] text-sm leading-relaxed text-stone-600">
+      <p className="mb-6 max-w-[56ch] text-sm leading-relaxed text-ink/80">
         {product.description}
       </p>
 
@@ -150,10 +152,10 @@ export default function ProductBuy({ product }) {
                     role="radio"
                     aria-checked={selected[option.id] === value.id}
                     onClick={() => changeOption(option.id, value.id)}
-                    className={`border px-4 py-2.5 text-sm transition-colors ${
+                    className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
                       selected[option.id] === value.id
-                        ? 'border-[#A65A3E] bg-[#F5F1EB] font-semibold text-[#2E261F]'
-                        : 'border-[#E2D9CE] bg-white text-stone-700 hover:border-[#2E261F]'
+                        ? 'border-brown bg-tint font-semibold text-brown'
+                        : 'border-line bg-white text-ink hover:border-ink'
                     }`}
                   >
                     {value.value}
@@ -175,10 +177,10 @@ export default function ProductBuy({ product }) {
                 aria-checked={fallbackId === candidate.id}
                 disabled={candidate.stock < 1}
                 onClick={() => { setFallbackId(candidate.id); setQty(1); }}
-                className={`border px-4 py-2.5 text-sm disabled:opacity-40 ${
+                className={`rounded-lg border px-4 py-2 text-sm disabled:opacity-40 ${
                   fallbackId === candidate.id
-                    ? 'border-[#A65A3E] bg-[#F5F1EB] font-semibold'
-                    : 'border-[#E2D9CE] bg-white'
+                    ? 'border-brown bg-tint font-semibold text-brown'
+                    : 'border-line bg-white text-ink hover:border-ink'
                 }`}
               >
                 {candidate.label}
@@ -191,11 +193,11 @@ export default function ProductBuy({ product }) {
       <p className={labelClass}>Quantity</p>
       <div className="mb-6 flex flex-wrap items-center gap-5">
         <Stepper value={qty} onChange={setQty} max={variant?.stock || 1} />
-        <p className="text-sm text-stone-500">
-          Total: <strong className="text-[#2E261F]">{money(unitPrice * qty)}</strong>
+        <p className="text-sm text-muted">
+          Total: <strong className="text-ink">{money(unitPrice * qty)}</strong>
         </p>
-        <p className={`text-xs font-semibold uppercase tracking-wider ${
-          inStock ? 'text-emerald-700' : 'text-[#A65A3E]'
+        <p className={`text-xs font-semibold ${
+          inStock ? 'text-emerald-700' : 'text-red-700'
         }`}>
           {inStock ? `In stock (${variant.stock})` : 'Unavailable'}
         </p>
@@ -217,7 +219,7 @@ export default function ProductBuy({ product }) {
               href={`https://wa.me/${whatsAppNumber}?text=${message}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="border border-[#E2D9CE] px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest"
+              className="rounded-lg border border-line px-4 py-2.5 text-center text-sm font-semibold hover:border-ink"
             >
               Order on WhatsApp
             </a>
@@ -225,7 +227,7 @@ export default function ProductBuy({ product }) {
           {storePhone && (
             <a
               href={`tel:${storePhone}`}
-              className="border border-[#E2D9CE] px-4 py-3 text-center text-xs font-semibold uppercase tracking-widest"
+              className="rounded-lg border border-line px-4 py-2.5 text-center text-sm font-semibold hover:border-ink"
             >
               Call for Order
             </a>
@@ -233,12 +235,9 @@ export default function ProductBuy({ product }) {
         </div>
       )}
 
-      <div className="flex max-w-[480px] gap-6 border-t border-[#E2D9CE] pt-4 text-xs font-medium uppercase tracking-wider text-stone-500">
-        <button type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}>
-          {liked ? '♥ Saved' : '♡ Save for later'}
-        </button>
-        <button type="button" onClick={onShare}>
-          {shared ? 'Link copied' : 'Share'}
+      <div className="flex max-w-[480px] gap-6 border-t border-line pt-4 text-sm text-muted">
+        <button type="button" onClick={onShare} className="hover:text-ink">
+          {shared ? 'Link copied' : 'Share this product'}
         </button>
       </div>
     </div>

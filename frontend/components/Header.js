@@ -1,14 +1,37 @@
 'use client';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCart } from './CartContext';
+import { useWishlist } from './WishlistContext';
 import Container from './ui/Container';
+import { CartIcon, HeartIcon, SearchIcon, UserIcon } from './ui/Icons';
+import { useSite } from './SiteContext';
+import { money } from '@/lib/format';
 
-export default function Header() {
+const iconLink = 'relative flex flex-col items-center gap-0.5 text-ink hover:text-brown';
+
+export default function Header({ categories = [] }) {
   const router = useRouter();
+  const path = usePathname();
   const { count } = useCart();
+  const wish = useWishlist();
   const [q, setQ] = useState('');
+  const site = useSite();
+  const s = site.settings;
+  const logo = s.logo_url || '/logo.png';
+  const free = Number(s.free_delivery_min_order) > 0 ? `Free delivery on orders over ${money(s.free_delivery_min_order)}` : 'Fresh food delivered to your door';
+
+  // Category row: database categories first, then Brands and Hot Deals, then anything extra added in Admin → Menus.
+  const parentIds = new Set(categories.map((c) => Number(c.parent_id)).filter(Boolean));
+  const top = categories.filter((c) => Number(c.product_count) > 0 && (!parentIds.has(Number(c.id)) || Number(c.own_product_count) > 0)).slice(0, 7);
+  const links = [
+    ...top.map((c) => ({ href: `/products?category=${c.slug}`, label: c.name })),
+    { href: '/brands', label: 'Brands' },
+    { href: '/deals', label: 'Hot Deals', hot: true },
+  ];
+  const seen = new Set(links.map((l) => l.href).concat(['/', '/products', '/products?deal=1', '/orders/tracking', '/contact']));
+  for (const m of site.menus.header) { if (!seen.has(m.url)) { seen.add(m.url); links.push({ href: m.url, label: m.label, hot: /deal/i.test(m.url) }); } }
 
   const search = (e) => {
     e.preventDefault();
@@ -16,43 +39,54 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-[#E2D9CE] bg-[#FAF8F5]/95 backdrop-blur">
-      <Container className="flex flex-wrap items-center gap-x-7 gap-y-2.5 py-2.5 md:h-[76px] md:flex-nowrap md:py-0">
-        <Link href="/" aria-label="Aayash E-Mart home">
-          <img src="/logo.png" alt="Aayash E-Mart" className="block h-[52px] w-auto" />
-        </Link>
-
-        <nav className="hidden gap-6 text-xs font-semibold uppercase tracking-widest text-[#2E261F] md:flex" aria-label="Main">
-          {[['/', 'Home'], ['/products', 'Shop all'], ['/products?deal=1', 'Deals'], ['/orders/tracking', 'Track order']].map(([href, label]) => (
-            <Link key={label} href={href} className="border-b-2 border-transparent py-1.5 transition-colors hover:border-[#A65A3E] hover:text-[#A65A3E]">
-              {label}
+    <header className="sticky top-0 z-30 bg-white">
+      <div className="bg-tint text-xs text-ink">
+        <Container className="flex items-center justify-between gap-4 py-1.5">
+          <p className="truncate"><span className="font-medium text-brown">{free}</span>{s.delivery_area_text ? <span className="hidden text-muted sm:inline"> · {s.delivery_area_text}</span> : null}</p>
+          <p className="flex shrink-0 items-center gap-4">
+            <Link href="/orders/tracking" className="hover:text-brown hover:underline">Track order</Link>
+            <Link href="/contact" className="hover:text-brown hover:underline">Help</Link>
+          </p>
+        </Container>
+      </div>
+      <div className="border-b border-line">
+        <Container className="flex flex-wrap items-center gap-x-4 gap-y-3 py-3 md:flex-nowrap md:gap-x-8">
+          <Link href="/" aria-label="Aayash E-Mart home" className="shrink-0">
+            <img src={logo} alt={s.site_name || 'Aayash E-Mart'} className="block h-11 w-auto sm:h-[50px]" />
+          </Link>
+          <form onSubmit={search} role="search" className="order-3 flex basis-full overflow-hidden rounded-lg border border-line bg-white focus-within:border-brown md:order-none md:basis-auto md:flex-1">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search rice, fish, milk…" aria-label="Search products"
+              className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none" />
+            <button type="submit" aria-label="Search" className="flex items-center gap-2 bg-brown px-5 text-sm font-semibold text-white transition-colors hover:bg-ink">
+              <SearchIcon size={18} /><span className="hidden sm:inline">Search</span>
+            </button>
+          </form>
+          <nav className="ml-auto flex items-center gap-5 text-[11px] font-medium md:ml-0" aria-label="Account and cart">
+            <Link href="/account" className={`${iconLink} hidden sm:flex`}><UserIcon size={22} />Account</Link>
+            <Link href="/wishlist" className={iconLink} aria-label={`Wishlist, ${wish.count} saved`}>
+              <HeartIcon size={22} />Wishlist
+              {wish.count > 0 && <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brown px-1 text-[10px] font-bold text-white">{wish.count}</span>}
             </Link>
-          ))}
-        </nav>
-
-        <form onSubmit={search} role="search"
-          className="order-3 flex basis-full overflow-hidden rounded-none border border-[#E2D9CE] bg-white focus-within:border-[#A65A3E] md:order-none md:ml-auto md:max-w-[420px] md:flex-1 md:basis-auto">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search rice, fish, milk…" aria-label="Search products"
-            className="min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-[#2E261F] placeholder:text-stone-400 focus:outline-none" />
-          <button type="submit" aria-label="Search" className="px-3.5 text-[#2E261F] transition-colors hover:text-[#A65A3E]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          </button>
-        </form>
-
-        <Link
-          href="/orders/tracking"
-          className="order-2 ml-auto text-xs font-semibold uppercase tracking-wider text-[#A65A3E] underline-offset-4 hover:underline md:hidden"
-        >
-          Track order
-        </Link>
-
-        <Link href="/cart" className="relative ml-auto grid h-11 w-11 place-items-center rounded-full bg-[#A65A4E] text-white transition-colors hover:bg-[#955110] md:ml-0" aria-label={`Cart, ${count} items`}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2" /><circle cx="9.5" cy="20" r="1.2" /><circle cx="17" cy="20" r="1.2" /></svg>
-          {count > 0 && (
-            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#A65A3E] px-1.5 text-xs font-bold text-white">{count}</span>
-          )}
-        </Link>
-      </Container>
+            <Link href="/cart" className={iconLink} aria-label={`Cart, ${count} items`}>
+              <CartIcon size={22} />Cart
+              {count > 0 && <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-ink">{count}</span>}
+            </Link>
+          </nav>
+        </Container>
+      </div>
+      <div className="border-b border-line bg-white">
+        <Container>
+          <nav className="-mx-1 flex gap-1 overflow-x-auto py-1 text-sm font-medium [scrollbar-width:none]" aria-label="Categories">
+            <Link href="/products" className={`whitespace-nowrap rounded-md px-3 py-2 hover:bg-tint ${path === '/products' ? 'text-brown' : 'text-ink'}`}>All products</Link>
+            {links.map((l) => (
+              <Link key={l.href + l.label} href={l.href} className="relative flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-ink hover:bg-tint">
+                {l.label}
+                {l.hot && <span className="rounded bg-accent px-1.5 py-px text-[10px] font-bold uppercase leading-4 text-ink">Hot</span>}
+              </Link>
+            ))}
+          </nav>
+        </Container>
+      </div>
     </header>
   );
 }

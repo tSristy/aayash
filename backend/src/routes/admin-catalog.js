@@ -2,7 +2,7 @@
 
 const express = require('express');
 
-const { requireAdmin } = require('../auth/session');
+const { requirePermission } = require('../auth/access');
 const catalogOverview = require('../controllers/catalog/CatalogOverviewController');
 const dashboardController = require('../controllers/catalog/DashboardController');
 const productTypeRoutes = require('./admin/catalog/ProductTypeRoutes');
@@ -14,8 +14,14 @@ const mediaRoutes = require('./admin/media/MediaRoutes');
 
 const router = express.Router();
 
-// All catalog and media operations require a valid Super Admin session.
-router.use(requireAdmin('super_admin'));
+// Catalog and media operations require a signed-in admin holding the matching permission.
+router.use((req, res, next) => {
+  const readOnly = req.method === 'GET' || req.method === 'HEAD';
+  const codes = readOnly
+    ? ['products.view', 'products.manage', 'stock.view', 'combos.manage', 'website.manage', 'orders.view', 'purchases.manage', 'marketing.manage']
+    : ['products.manage', 'website.manage'];
+  return requirePermission(...codes)(req, res, next);
+});
 
 router.use((_req, res, next) => {
   res.set('Cache-Control', 'no-store');

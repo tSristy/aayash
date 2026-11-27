@@ -13,6 +13,8 @@ module.exports = (sequelize) => sequelize.define('CourierProvider', {
   website_url: { type: DataTypes.STRING(500), allowNull: true },
   tracking_url_template: { type: DataTypes.STRING(500), allowNull: true },
   notes: { type: DataTypes.STRING(500), allowNull: true },
+  api_enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  api_mode: { type: DataTypes.ENUM('live', 'sandbox'), allowNull: false, defaultValue: 'live' },
   created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
 }, {

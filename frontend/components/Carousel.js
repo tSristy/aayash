@@ -34,7 +34,7 @@ function CategoryRow({ section, index }) {
         </h2>
         <Link
           href={`/products?category=${encodeURIComponent(section.cat.slug)}`}
-          className="text-xs font-semibold uppercase tracking-widest text-[#A65A3E] hover:underline"
+          className="text-xs font-semibold uppercase tracking-widest text-primary-deep hover:underline"
         >
           View all items →
         </Link>
@@ -43,7 +43,7 @@ function CategoryRow({ section, index }) {
       {canSlide && (
         <div className="mb-5 h-[4px] w-full overflow-hidden bg-[#E2D9CE]">
           <div
-            className="h-full bg-[#A65A3E] transition-all duration-300"
+            className="h-full bg-primary transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -103,7 +103,7 @@ function CategoryRow({ section, index }) {
             768: { slidesPerView: 3 },
             1024: { slidesPerView: 4 },
           }}
-          className={`!pb-10 [&_.swiper-pagination-bullet]:!bg-[#A65A3E] ${
+          className={`!pb-10 [&_.swiper-pagination-bullet]:!bg-primary ${
             canSlide ? '' : '[&_.swiper-pagination]:!hidden'
           }`}
         >

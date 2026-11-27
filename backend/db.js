@@ -11,6 +11,8 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   decimalNumbers: true,
+  // DATE columns (due dates, transaction dates, report days) stay plain 'YYYY-MM-DD' strings instead of timezone-shifted Dates.
+  dateStrings: ['DATE'],
 });
 
 /**

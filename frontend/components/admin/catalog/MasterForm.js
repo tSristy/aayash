@@ -23,6 +23,7 @@ const INITIAL_FORM = {
   sort_order: 0,
   emoji: '',
   image_url: '',
+  logo_url: '',
   is_active: true,
 };
 
@@ -58,6 +59,7 @@ export default function MasterForm({ entity, id }) {
               parent_id: data.parent_id || '',
               emoji: data.emoji || '',
               image_url: data.image_url || '',
+              logo_url: data.logo_url || '',
             });
           }
         }
@@ -96,6 +98,7 @@ export default function MasterForm({ entity, id }) {
         is_active: Boolean(form.is_active),
       };
 
+      if (!isCategory) payload.logo_url = form.logo_url;
       if (isCategory) {
         Object.assign(payload, {
           parent_id: form.parent_id ? Number(form.parent_id) : null,
@@ -221,6 +224,17 @@ export default function MasterForm({ entity, id }) {
                   disabled={saving}
                 />
               </>
+            )}
+            {!isCategory && (
+              <CategoryImageField
+                label="Brand logo"
+                id="brand-logo-file"
+                fit="object-contain p-2"
+                help="Shown in the brand row on the home page and on the Brands page. A square or wide logo on a white or transparent background works best (JPG, PNG or WebP, max 5 MB)."
+                value={form.logo_url}
+                onChange={(value) => update('logo_url', value)}
+                disabled={saving}
+              />
             )}
           </section>
 

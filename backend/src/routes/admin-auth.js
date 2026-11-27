@@ -5,6 +5,7 @@ const { AdminUser, AdminRole, AdminSession } = require('../models');
 const { hashPassword, verifyPassword } = require('../auth/password');
 const { COOKIE, cookieOptions, getCookie, publicUser, makeSession, findSession, hashToken, requireAdmin } = require('../auth/session');
 const { CORS_ORIGIN } = require('../../config');
+const { permissionsFor, requirePermission } = require('../auth/access');
 const router = express.Router();
 const attempts = new Map();
 const WINDOW = 15 * 60 * 1000;
@@ -58,7 +59,7 @@ router.post('/login', async (req, res, next) => {
     const old = getCookie(req);
     if (old) await AdminSession.update({ revoked_at: new Date() }, { where: { token_hash: hashToken(old), revoked_at: null } });
     await makeSession(user, res);
-    res.json({ user: publicUser(user) });
+    res.json({ user: { ...publicUser(user), permissions: await permissionsFor(user) } });
   } catch (error) { next(error); }
 });
 
@@ -66,7 +67,7 @@ router.get('/me', async (req, res, next) => {
   try {
     const session = await findSession(req);
     if (!session) return res.status(401).json({ error: 'Authentication required.' });
-    res.json({ user: publicUser(session.user) });
+    res.json({ user: { ...publicUser(session.user), permissions: await permissionsFor(session.user) } });
   } catch (error) { next(error); }
 });
 
@@ -79,5 +80,5 @@ router.post('/logout', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get('/probe', requireAdmin('super_admin'), (_req, res) => res.json({ ok: true, admin: true }));
+router.get('/probe', requirePermission(), (_req, res) => res.json({ ok: true, admin: true }));
 module.exports = router;

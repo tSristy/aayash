@@ -12,6 +12,11 @@ const adminOrderRouter = require('./src/routes/orders/admin-orders');
 const courierRoutes = require('./src/routes/admin/courier/CourierRoutes');
 const publicOrderRouter = require('./src/routes/orders/public-orders');
 const publicCatalogRouter = require('./src/routes/public/catalog');
+const publicSiteRouter = require('./src/routes/public/site');
+const customerRouter = require('./src/routes/public/customer');
+const adminOpsRouter = require('./src/routes/admin/ops');
+const courierApi = require('./src/controllers/courier/CourierApiController');
+const capi = require('./src/services/marketing/capi');
 const { publicRateLimit } = require('./src/middleware/public-rate-limit');
 const { bootstrapOnDevelopmentStart } = require('./src/bootstrap/admin');
 const { registerLocalImageServing } = require('./src/media/image-storage');
@@ -22,15 +27,21 @@ app.disable('x-powered-by');
 app.use(cors({ origin: CORS_ORIGIN.split(',').map((origin) => origin.trim()) }));
 
 // Media uploads are Base64-encoded and need a separate body size allowance.
+app.set('trust proxy', process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY : false);
 app.use('/api/admin/catalog/media', express.json({ limit: '8mb' }));
 app.use('/api/admin/catalog', express.json({ limit: '256kb' }));
+app.use('/api/admin/ops', express.json({ limit: '1mb' }));
 app.use(express.json({ limit: '32kb' }));
 
 app.use('/api/admin/auth', adminAuthRouter);
 app.use('/api/admin/catalog', adminCatalogRouter);
 app.use('/api/admin/orders', adminOrderRouter);
 app.use('/api/admin/couriers', courierRoutes);
+app.use('/api/admin/ops', adminOpsRouter);
 app.use('/api/orders', publicOrderRouter);
+app.post('/api/courier/webhook/:code', publicRateLimit({ max: 120 }), courierApi.webhook);
+app.use('/api/customer', customerRouter);
+app.use('/api', publicSiteRouter);
 app.use('/api', publicCatalogRouter);
 
 registerLocalImageServing(app);
@@ -89,6 +100,13 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`Aayash E-Mart API running on http://localhost:${PORT}`);
     });
+
+    // Background upkeep: poll courier APIs for parcels whose webhook never arrived, and retry failed Meta events.
+    if (process.env.BACKGROUND_JOBS !== 'off') {
+      const every = (ms, job) => setInterval(() => job().catch((e) => console.error('background job:', e.message)), ms).unref();
+      every(15 * 60 * 1000, () => courierApi.syncActiveShipments((m) => console.error(m)));
+      every(10 * 60 * 1000, () => capi.retryFailed());
+    }
   } catch (error) {
     console.error(`Backend startup failed: ${error.message}`);
     process.exitCode = 1;

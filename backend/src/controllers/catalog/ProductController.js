@@ -205,6 +205,11 @@ async function persist(productId, parsed, normalized, transaction, existing) {
         const data = { product_id: productId, sku: v.sku, label: v.label, price: v.price, compare_at_price: v.compare_at_price, stock: v.stock, is_default: v.is_default };
         const saved = v.id ? (await oldMap.get(v.id).update(data, { transaction })) : await ProductVariant.create(data, { transaction });
         idsBySku.set(v.sku, saved.id);
+        // Every stock change must be explained in the ledger, including edits made in the product form.
+        const priorStock = v.id ? Number(oldMap.get(v.id).stock) : 0;
+        if (Number(v.stock) !== priorStock || (!v.id && Number(v.stock) > 0)) {
+            await sequelize.query("INSERT INTO stock_movements (variant_id, product_id, movement_type, qty_change, balance_after, note) VALUES (?, ?, ?, ?, ?, ?)", { replacements: [saved.id, productId, v.id ? 'adjustment' : 'opening', Number(v.stock) - priorStock, Number(v.stock), v.id ? 'Edited in product form' : 'Opening stock'], transaction });
+        }
         for (const s of v.selections)
             await VariantOptionValue.create({ variant_id: saved.id, option_value_id: valuesMap.get(`${s.option_code}\0${s.value}`) }, { transaction });
     }
@@ -251,4 +256,18 @@ const setStatus = route(async (req, res) => {
     await Product.update({ status: req.body.status, is_active: req.body.status === 'active' }, { where: { id: productId } });
     res.json({ id: productId, status: req.body.status });
 });
-module.exports = { list, get, create, update, setStatus, getDetails };
+const duplicate = route(async (req, res) => {
+    const productId = id(req.params.id), current = await getDetails(productId);
+    if (!current)
+        return notFound(res);
+    const suffix = Date.now().toString(36).slice(-4).toUpperCase();
+    const parsed = parseProduct({ name: `${current.name} (Copy)`.slice(0, 200), slug: `${current.slug}-copy-${suffix.toLowerCase()}`.slice(0, 220), category_id: current.category_id, brand_id: current.brand_id, product_type_id: current.product_type_id, short_desc: current.short_desc, description: current.description, is_featured: false, status: 'draft', options: current.options, images: current.images.map(({ url, alt, variant_sku }) => ({ url, alt, variant_sku: variant_sku ? `${variant_sku}-C${suffix}`.slice(0, 60) : variant_sku })), specifications: current.specifications, variants: current.variants.map(({ sku, label, price, compare_at_price, is_default, selections }) => ({ id: null, sku: `${sku}-C${suffix}`.slice(0, 60), label, price, compare_at_price, stock: 0, is_default, selections })) });
+    const saved = await sequelize.transaction(async (transaction) => {
+        const specs = await validateContext(parsed, transaction);
+        const item = await Product.create(parsed.product, { transaction });
+        await persist(item.id, parsed, specs, transaction, null);
+        return item.id;
+    });
+    res.status(201).json(await getDetails(saved));
+});
+module.exports = { list, get, create, update, setStatus, getDetails, duplicate };

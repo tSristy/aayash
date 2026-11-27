@@ -3,6 +3,7 @@
 const { pool } = require('../../../db');
 const { CourierProvider } = require('../../models');
 const { Op } = require('sequelize');
+const { COURIER_BOOKABLE } = require('../../services/orders/workflow');
 const { validateProviderInput } = require('../../services/courier/provider-validation');
 const { parseListQuery, paginationResult } = require('../../utils/catalog-pagination');
 const {
@@ -47,8 +48,8 @@ function providerDto(provider) {
     name: provider.name,
     is_active: Boolean(provider.is_active),
     is_archived: Boolean(provider.is_archived),
-    integration_mode: 'manual',
-    api_ready: false,
+    integration_mode: provider.api_enabled ? 'api' : 'manual',
+    api_ready: Boolean(provider.api_enabled),
     contact_phone: provider.contact_phone || '',
     website_url: provider.website_url || '',
     tracking_url_template: provider.tracking_url_template || '',
@@ -317,7 +318,7 @@ const createManualShipment = respond(async (req, res) => {
     if (!order) {
       throw new CourierError(404, 'Order not found.');
     }
-    if (!['confirmed', 'packed', 'out_for_delivery'].includes(order.status)) {
+    if (!COURIER_BOOKABLE.includes(order.status)) {
       throw new CourierError(409, 'Confirm the order before booking a courier shipment.');
     }
 
@@ -347,8 +348,8 @@ const createManualShipment = respond(async (req, res) => {
     const [created] = await connection.query(`
       INSERT INTO courier_shipments (
         order_id, provider_id, consignment_id, status, booking_mode,
-        cod_amount, weight_kg, note, created_by_admin_id
-      ) VALUES (?, ?, ?, 'booked', 'manual', ?, ?, ?, ?)
+        cod_amount, weight_kg, note, created_by_admin_id, booked_at
+      ) VALUES (?, ?, ?, 'booked', 'manual', ?, ?, ?, ?, NOW())
     `, [orderId, providerId, consignment, cod, weightKg, note || null, req.adminUser.id]);
 
     await connection.query(`

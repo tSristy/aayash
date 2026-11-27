@@ -210,7 +210,7 @@ export default function CourierAssignment({ order, items = [], onOrderStatusChan
             type="button"
             disabled={busy}
             onClick={markOutForDelivery}
-            className="rounded-lg bg-primary px-4 py-2 text-xs font-bold text-taupe-900 disabled:opacity-50"
+            className="rounded-lg bg-taupe-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
           >
             {busy ? 'Updating…' : 'Mark Out for Delivery'}
           </button>
@@ -317,7 +317,7 @@ export default function CourierAssignment({ order, items = [], onOrderStatusChan
           <button
             type="submit"
             disabled={busy || !providerId}
-            className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-taupe-900 disabled:opacity-50"
+            className="rounded-xl bg-taupe-900 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
           >
             {busy ? 'Saving…' : 'Record Manual Shipment'}
           </button>
